@@ -66,7 +66,7 @@ cmake --build build
 # plugins end up in build/Kaia_artefacts/Release/{VST3,LV2,CLAP,Standalone}
 ```
 
-JUCE 8 and the CLAP extensions are downloaded automatically during the first configure.
+JUCE 9 and the CLAP extensions are downloaded automatically during the first configure.
 
 | CMake option | Default | |
 |---|---|---|

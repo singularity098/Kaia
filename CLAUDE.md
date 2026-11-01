@@ -4,7 +4,7 @@ Guidance for Claude (and other agents) working on this repository.
 
 ## What Kaia is
 
-Kaia is a drum sampler plugin (JUCE 8, C++20) that plays Akai MPC programs and expansions
+Kaia is a drum sampler plugin (JUCE 9, C++20) that plays Akai MPC programs and expansions
 directly: `.xpm` (MPC 1.x/2.x XML and MPC 3.x gzip-JSON), `.xpn` expansions (zip, read in place),
 and `.pgm` (MPC500/1000/2500, MPC2000/2000XL, MPC3000 with `.SND` sounds). Formats: VST3, LV2,
 CLAP and Standalone on Linux (primary platform); VST3/CLAP/Standalone (+AU) on Windows/macOS via CI.
@@ -198,7 +198,7 @@ Normal machine:
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
-JUCE 8.0.10 and clap-juce-extensions (pinned commit) are fetched by CMake unless
+JUCE 9.0.4 and clap-juce-extensions (pinned commit) are fetched by CMake unless
 `-DKAIA_JUCE_DIR=...` / `-DKAIA_CLAP_EXT_DIR=...` point at local checkouts.
 
 Options: `KAIA_BUILD_PLUGIN` (ON), `KAIA_BUILD_CLAP` (ON), `KAIA_BUILD_TESTS` (ON),
@@ -299,7 +299,10 @@ Product "Kaia", manufacturer code `Kaia`, plugin code `Kai1`, VST3/AU bundle id
   (cancellable, capped at 300k files), then matches every word against the file name or its
   folder path in memory; at most 1000 results, shown as a tree with every folder open. Samples
   are dragged with the library's `kaiaLibrary: sample` description, so `dropOnPad` handles them.
-* Touch: Linux delivers touch as mouse events, so lists use `ScrollOnDragMode::all`; the library
+* Touch: Linux delivers touch as mouse events. JUCE 9's XInput2 multitouch is switched off
+  (`JUCE_USE_XINPUT=0`): everything below was tuned on the owner's touchscreen with mouse events,
+  and it spares the libxi-dev build dependency; turning it on needs a test on real hardware. Lists
+  use `ScrollOnDragMode::all`; the library
   (list and tiles) scrolls with `KineticScroller` instead: drag, fling with friction (shared setting
   `flingStrength` 0..1, Settings slider 0-10), wheel glide, all applied once per frame from a
   `VBlankAttachment` (on Linux the peer repaints right after the VBlank callbacks, so there is no

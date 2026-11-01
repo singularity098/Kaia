@@ -62,7 +62,7 @@ When a crash is fixed, add the minimised input's case to `KaiaTests` as a regres
 
 * **JUCE XML parser read past the end of the string** with invalid UTF-8 (`<C><n></` + `C4 3E`)
   in an `.xpm`: `CharPointer_UTF8::isValidString` accepts it and `operator++` then skips the
-  terminating NUL. Fixed on Kaia's side: `isValidUtf8` (strict) decides between UTF-8 and Latin-1
+  terminating NUL (JUCE 9 rewrote `operator++`; Kaia's own check stays). Fixed on Kaia's side: `isValidUtf8` (strict) decides between UTF-8 and Latin-1
   in `bytesToText`, zip entry names, and every outside XML file (`readTextFile`, `parseXmlFile`).
 * **JUCE WAV reader allocated whatever a metadata chunk claimed** (a 1.7 KB file with a 1.7 GB
   `smpl` chunk: gigabytes of memory and millions of loop entries). `loadSample` now refuses WAVs
@@ -71,6 +71,6 @@ When a crash is fixed, add the minimised input's case to `KaiaTests` as a regres
   checking the archive held that much. It now checks the entry fits in the file (and, for
   deflate, can't expand more than ~1032:1) first. The central directory bounds check could also
   overflow with a huge Zip64 offset.
-* **JUCE MP3 decoder writes past `xr[1][575]`** (intensity stereo, `juce_MP3AudioFormat.cpp`
-  around line 1057; still present on JUCE `develop` as of 2026-10). Not fixed: it's inside JUCE.
+* **JUCE MP3 decoder writes past `xr[1][575]`** (intensity stereo, `doIStereo` in
+  `juce_MP3AudioFormat.cpp`; still present in JUCE 9.0.4 and on `develop` as of 2026-10). Not fixed: it's inside JUCE.
   Run `KaiaFuzzAudio` with `-fork=1 -ignore_crashes=1` until it is.

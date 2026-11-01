@@ -55,7 +55,7 @@ int main (int argc, char** argv)
     processor.selectedPad = pad;
     processor.selectedBank = pad / kPadsPerBank;
 
-    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditorAndMakeActive());
     editor->setSize (1120, 720);
     editor->setVisible (true);
     pump (300);

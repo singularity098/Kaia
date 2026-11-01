@@ -133,7 +133,7 @@ int main (int argc, char** argv)
             editorSeconds = juce::String (argv[++i]).getDoubleValue();
 
     juce::AudioPluginFormatManager formats;
-    formats.addDefaultFormats();
+    juce::addDefaultFormatsToManager (formats);
 
     juce::OwnedArray<juce::PluginDescription> types;
     for (auto* f : formats.getFormats())
@@ -261,7 +261,7 @@ int main (int argc, char** argv)
         plugin->prepareToPlay (rate, block);
         setKit (*plugin, st);
 
-        auto* editor = plugin->createEditorIfNeeded();
+        auto* editor = plugin->createEditorAndMakeActive();
         CHECK (editor != nullptr, "editor opens");
         if (editor != nullptr)
         {

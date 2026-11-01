@@ -18,12 +18,9 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
 {
     setLookAndFeel (&lookAndFeel);
 
-    if (auto svg = juce::XmlDocument::parse (juce::String::fromUTF8 (KaiaLogoData::kaiawordmark_svg, KaiaLogoData::kaiawordmark_svgSize)))
-    {
-        wordmark = juce::Drawable::createFromSVG (*svg);
-        if (wordmark != nullptr)
-            wordmark->replaceColour (juce::Colours::white, Colours::text);
-    }
+    wordmark = juce::Drawable::createFromSVGString (juce::String::fromUTF8 (KaiaLogoData::kaiawordmark_svg, KaiaLogoData::kaiawordmark_svgSize));
+    if (wordmark != nullptr)
+        wordmark->replaceColour (juce::Colours::white, Colours::text);
 
     openButton.setTooltip ("Open an MPC program (.xpm, .pgm), an expansion (.xpn), a folder, or audio files");
     openButton.onClick = [this] { showOpenMenu(); };
