@@ -50,6 +50,9 @@ build-fuzz/KaiaFuzzXpm -max_total_time=600 -max_len=65536 -rss_limit_mb=2048 -ti
   Rerun it with `build-fuzz/KaiaFuzzXpm crash-<hash>`; `-minimize_crash=1 -max_total_time=60
   -exact_artifact_path=min crash-<hash>` shrinks it.
 * `-fork=N -ignore_crashes=1` keeps going past known failures, with N worker processes.
+* Speed with both sanitizers on 4 cores: SND ~70k inputs/s, PGM ~1k/s, XPM ~80/s, XPN ~10/s
+  (deflated entries expand into large XML documents that are parsed several times). Give XPN
+  hours rather than minutes, or `-fork=N`.
 * `fuzz/` is only a suggestion, keep it out of the repository (corpora are big and generated).
 
 When a crash is fixed, add the minimised input's case to `KaiaTests` as a regression check
