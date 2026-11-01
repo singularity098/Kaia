@@ -23,13 +23,18 @@ include(FetchContent)
 # ---------------------------------------------------------------------------
 # JUCE
 # ---------------------------------------------------------------------------
+# Kaia patches JUCE's MP3 decoder (an out-of-bounds write on corrupt files): cmake/PatchJuce.cmake
 if(KAIA_JUCE_DIR)
+    execute_process(COMMAND ${CMAKE_COMMAND} -DJUCE_SOURCE_DIR=${KAIA_JUCE_DIR} -DCHECK_ONLY=ON
+                            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake)
     add_subdirectory(${KAIA_JUCE_DIR} ${CMAKE_BINARY_DIR}/JUCE EXCLUDE_FROM_ALL)
 else()
     FetchContent_Declare(JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
         GIT_TAG        9.0.4
-        GIT_SHALLOW    TRUE)
+        GIT_SHALLOW    TRUE
+        PATCH_COMMAND  ${CMAKE_COMMAND} -DJUCE_SOURCE_DIR=<SOURCE_DIR>
+                       -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake)
     FetchContent_MakeAvailable(JUCE)
 endif()
 
@@ -228,7 +233,10 @@ if(KAIA_BUILD_FUZZERS)
     endif()
 
     set(KAIA_FUZZ_SANITIZERS "address,undefined" CACHE STRING "Sanitizers for the fuzz targets (besides fuzzer)")
-    set(KAIA_FUZZ_FLAGS -fsanitize=fuzzer,${KAIA_FUZZ_SANITIZERS} -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g)
+    # -fno-sanitize=function: JUCE 9 builds libFLAC as C, and C calling JUCE's C++ callbacks counts
+    # as a call through the wrong function type for clang, although the ABI is the same.
+    set(KAIA_FUZZ_COMMON -fno-sanitize=function -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g)
+    set(KAIA_FUZZ_FLAGS -fsanitize=fuzzer,${KAIA_FUZZ_SANITIZERS} ${KAIA_FUZZ_COMMON})
 
     # The core sources and the JUCE modules are compiled once, instrumented for coverage
     # (fuzzer-no-link) and the sanitizers; each target only adds its own small file.
@@ -237,7 +245,7 @@ if(KAIA_BUILD_FUZZERS)
     target_include_directories(KaiaFuzzCore PUBLIC Source)
     target_compile_definitions(KaiaFuzzCore PUBLIC ${KAIA_COMMON_DEFS} JUCE_STANDALONE_APPLICATION=1)
     target_compile_options(KaiaFuzzCore PUBLIC
-        -fsanitize=fuzzer-no-link,${KAIA_FUZZ_SANITIZERS} -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g)
+        -fsanitize=fuzzer-no-link,${KAIA_FUZZ_SANITIZERS} ${KAIA_FUZZ_COMMON})
     foreach(module ${KAIA_FUZZ_MODULES})
         # PRIVATE: JUCE modules carry their .cpp files as interface sources; linking them PUBLIC
         # would compile all of JUCE again into every fuzz target. Pass on headers and defines only.

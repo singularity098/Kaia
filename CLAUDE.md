@@ -87,6 +87,7 @@ tools/
   sandbox-sysroot.sh        header-only sysroot for build machines without the distro -dev packages
   xatoms.c                  pre-registers X11 atoms so JUCE windows work on a bare Xvfb
 cmake/glibc_compat.{h,c}    portable Linux build: glibc 2.35 baseline (see below)
+cmake/PatchJuce.cmake       Kaia's fixes to JUCE sources (MP3 decoder), applied after fetching JUCE
 packaging/install.sh        user/system install of the release archive (also `--from <build dir>`)
 build.sh                    one-command source build for users (`--deps`, `--install`)
 .github/workflows/build.yml CI: Linux (portable, ubuntu-22.04) + Windows + macOS, runs KaiaTests
@@ -199,7 +200,12 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 JUCE 9.0.4 and clap-juce-extensions (pinned commit) are fetched by CMake unless
-`-DKAIA_JUCE_DIR=...` / `-DKAIA_CLAP_EXT_DIR=...` point at local checkouts.
+`-DKAIA_JUCE_DIR=...` / `-DKAIA_CLAP_EXT_DIR=...` point at local checkouts. The fetched JUCE is
+patched by `cmake/PatchJuce.cmake` (MP3 decoder out-of-bounds write, from mpg123's CVE-2006-1655
+fix). It edits single lines, keeps JUCE's CRLF line endings, skips sources already patched, and
+stops with an error if the code no longer matches: on a JUCE bump, check whether JUCE fixed it and
+update or drop the fix. A local `KAIA_JUCE_DIR` is only checked (warning); patch it with
+`cmake -DJUCE_SOURCE_DIR=<dir> -P cmake/PatchJuce.cmake`.
 
 Options: `KAIA_BUILD_PLUGIN` (ON), `KAIA_BUILD_CLAP` (ON), `KAIA_BUILD_TESTS` (ON),
 `KAIA_PORTABLE_LINUX` (OFF; use for release binaries), `KAIA_BUILD_HOST_TEST` (OFF; builds
@@ -235,8 +241,8 @@ crash into a `KaiaTests` check. Text from outside files goes through `bytesToTex
 `readTextFile` / `parseXmlFile` (strict `isValidUtf8`, Latin-1 fallback), never
 `File::loadFileAsString`, `juce::parseXML (File)` or `CharPointer_UTF8::isValidString`: JUCE
 accepts some invalid UTF-8 and its XML parser then reads out of bounds. `loadSample` refuses WAVs
-whose metadata chunks claim far more than the file holds (JUCE would allocate it). Known open
-finding: JUCE's MP3 decoder writes out of bounds on some corrupt files.
+whose metadata chunks claim far more than the file holds (JUCE would allocate it). JUCE's MP3
+decoder is patched at configure time (see Building).
 
 Plugin binaries (Linux, headless):
 * pluginval: `xvfb-run -a pluginval --strictness-level 10 --validate-in-process --validate build/Kaia_artefacts/Release/VST3/Kaia.vst3`

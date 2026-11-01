@@ -25,7 +25,10 @@ cmake --build build-fuzz
 ```
 
 `KAIA_FUZZ_SANITIZERS` (default `address,undefined`) picks the sanitizers; `memory` needs an
-instrumented libc++ and isn't set up.
+instrumented libc++ and isn't set up. UBSan's `function` check is off: JUCE 9 builds libFLAC as C,
+and C calling JUCE's C++ callbacks counts as a call through the wrong function type, although
+the ABI is the same. With `KAIA_JUCE_DIR`, patch that checkout first (`cmake/PatchJuce.cmake`),
+or `KaiaFuzzAudio` stops at the MP3 decoder bug again.
 
 ## Run
 
@@ -71,6 +74,8 @@ When a crash is fixed, add the minimised input's case to `KaiaTests` as a regres
   checking the archive held that much. It now checks the entry fits in the file (and, for
   deflate, can't expand more than ~1032:1) first. The central directory bounds check could also
   overflow with a huge Zip64 offset.
-* **JUCE MP3 decoder writes past `xr[1][575]`** (intensity stereo, `doIStereo` in
-  `juce_MP3AudioFormat.cpp`; still present in JUCE 9.0.4 and on `develop` as of 2026-10). Not fixed: it's inside JUCE.
-  Run `KaiaFuzzAudio` with `-fork=1 -ignore_crashes=1` until it is.
+* **JUCE MP3 decoder wrote past `xr[1][575]`** (intensity stereo, `doIStereo` in
+  `juce_MP3AudioFormat.cpp`; still in JUCE 9.0.4 and on `develop` as of 2026-10). JUCE's decoder is a
+  port of mpg123 from before mpg123's fix for CVE-2006-1655. Fixed by patching JUCE at configure
+  time (`cmake/PatchJuce.cmake`), which also corrects where short-block bands start (in bounds,
+  but the wrong samples). All 17 saved crash inputs pass with the patch and fail without it.
