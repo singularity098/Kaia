@@ -52,8 +52,54 @@ namespace
         return fm;
     }
 
+    // JUCE's WAV reader allocates each metadata chunk (smpl, cue, LIST, bext...) at the size its
+    // header claims and then walks the loop/cue counts it finds there. A damaged file whose chunk
+    // header claims gigabytes makes it allocate that much and build millions of metadata entries
+    // (found by Tests/Fuzz). Refuse WAVs whose metadata chunks claim far more than the file holds;
+    // a little overrun (a file cut off near its end) is let through, JUCE handles that cheaply.
+    bool wavChunksFit (juce::InputStream& in, juce::String& error)
+    {
+        constexpr juce::int64 slack = 1 << 20;
+        auto total = in.getTotalLength();
+        bool ok = true;
+
+        char header[12];
+        if (total >= 12 && in.setPosition (0) && in.read (header, 12) == 12
+            && std::memcmp (header, "RIFF", 4) == 0 && std::memcmp (header + 8, "WAVE", 4) == 0)
+        {
+            juce::int64 pos = 12;
+            for (int n = 0; n < 4096 && pos + 8 <= total; ++n)
+            {
+                char id[4];
+                if (! in.setPosition (pos) || in.read (id, 4) != 4)
+                    break;
+                auto length = (juce::int64) (juce::uint32) in.readInt();
+                auto remaining = total - (pos + 8);
+
+                if (std::memcmp (id, "data", 4) == 0)
+                {
+                    if (length > remaining)
+                        break;              // audio runs to the end (streamed or truncated recording)
+                }
+                else if (length > remaining + slack)
+                {
+                    error = "damaged WAV file (its '" + juce::String (id, 4) + "' chunk is larger than the file)";
+                    ok = false;
+                    break;
+                }
+                pos += 8 + length + (length & 1);
+            }
+        }
+
+        in.setPosition (0);
+        return ok;
+    }
+
     SampleDataPtr decodeWithJuce (std::unique_ptr<juce::InputStream> stream, const juce::String& ref, juce::String& error)
     {
+        if (! wavChunksFit (*stream, error))
+            return {};
+
         std::unique_ptr<juce::AudioFormatReader> reader (formatManager().createReaderFor (std::move (stream)));
         if (reader == nullptr)
         {
@@ -119,6 +165,54 @@ namespace
     }
 }
 
+bool isValidUtf8 (const char* text, size_t numBytes)
+{
+    auto* b = reinterpret_cast<const juce::uint8*> (text);
+    size_t i = 0;
+    while (i < numBytes)
+    {
+        auto c = b[i];
+        if (c < 0x80)
+        {
+            ++i;
+            continue;
+        }
+
+        int extra;
+        juce::uint8 lo = 0x80, hi = 0xbf;   // allowed range of the first continuation byte
+        if (c >= 0xc2 && c <= 0xdf)      extra = 1;
+        else if (c == 0xe0)              { extra = 2; lo = 0xa0; }   // no overlong forms
+        else if (c == 0xed)              { extra = 2; hi = 0x9f; }   // no UTF-16 surrogates
+        else if (c >= 0xe1 && c <= 0xef) extra = 2;
+        else if (c == 0xf0)              { extra = 3; lo = 0x90; }
+        else if (c == 0xf4)              { extra = 3; hi = 0x8f; }   // nothing above U+10FFFF
+        else if (c >= 0xf1 && c <= 0xf3) extra = 3;
+        else                             return false;
+
+        if (i + (size_t) extra >= numBytes)
+            return false;                   // sequence cut off by the end of the text
+        if (b[i + 1] < lo || b[i + 1] > hi)
+            return false;
+        for (int k = 2; k <= extra; ++k)
+            if ((b[i + (size_t) k] & 0xc0) != 0x80)
+                return false;
+        i += (size_t) extra + 1;
+    }
+    return true;
+}
+
+juce::String readTextFile (const juce::File& file)
+{
+    juce::MemoryBlock data;
+    return file.loadFileAsData (data) ? bytesToText (data) : juce::String();
+}
+
+std::unique_ptr<juce::XmlElement> parseXmlFile (const juce::File& file)
+{
+    auto text = readTextFile (file);
+    return text.isEmpty() ? nullptr : juce::XmlDocument::parse (text);
+}
+
 juce::String bytesToText (const juce::MemoryBlock& data)
 {
     auto* b = static_cast<const juce::uint8*> (data.getData());
@@ -138,7 +232,7 @@ juce::String bytesToText (const juce::MemoryBlock& data)
     auto nul = std::find (chars, chars + len, '\0');
     len = (int) (nul - chars);
 
-    if (juce::CharPointer_UTF8::isValidString (chars, len))
+    if (isValidUtf8 (chars, (size_t) len))
         return juce::String::fromUTF8 (chars, len);
 
     juce::String s;

@@ -12,6 +12,17 @@ bool isAudioFileName (const juce::String& name);
 
 // Converts file bytes to text: honours UTF-16/UTF-8 BOMs, falls back to Latin-1 for invalid UTF-8.
 juce::String bytesToText (const juce::MemoryBlock& data);
+
+// Strict UTF-8 check (RFC 3629: no overlong forms, surrogates or stray continuation bytes).
+// Use this, not juce::CharPointer_UTF8::isValidString: that one accepts sequences such as C4 3E,
+// and JUCE strings holding them make CharPointer_UTF8::operator++ step over the terminating
+// NUL (a heap overflow in XmlDocument found by Tests/Fuzz).
+bool isValidUtf8 (const char* text, size_t numBytes);
+
+// A text or XML file from outside Kaia (Expansion.xml, presets, drum maps), decoded with
+// bytesToText. Never use File::loadFileAsString / juce::parseXML (File) for those.
+juce::String readTextFile (const juce::File& file);
+std::unique_ptr<juce::XmlElement> parseXmlFile (const juce::File& file);
 bool isProgramFileName (const juce::String& name);   // .xpm / .pgm
 
 // Reads the raw bytes behind a SampleRef (plain file or archive entry).

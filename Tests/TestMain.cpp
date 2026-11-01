@@ -1,5 +1,5 @@
 // Offline tests for the Kaia parsers and engine.
-// Usage: KaiaTests [--real-data <dir>] [--keep]
+// Usage: KaiaTests [--real-data <dir>] [--keep] [--write-fuzz-corpus <dir>]
 //
 // Generates synthetic MPC programs in every supported format (XPM XML, XPM JSON, XPN, PGM for
 // MPC1000 / MPC2000XL / MPC3000), loads them, renders MIDI through the engine and checks the audio.
@@ -143,7 +143,7 @@ struct XPad
 };
 
 static juce::String makeXpmXml (const juce::String& name, const std::vector<XPad>& pads, const std::map<int, int>& noteMap,
-                                bool keygroup = false)
+                                bool keygroup = false, bool allPads = true)
 {
     juce::String x;
     x << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<MPCVObject>\n  <Version>\n    <File_Version>2.1</File_Version>\n"
@@ -163,6 +163,8 @@ static juce::String makeXpmXml (const juce::String& name, const std::vector<XPad
                 p = &pp;
 
         XPad empty { n, {} };
+        if (p == nullptr && ! allPads)
+            continue;
         if (p == nullptr)
             p = &empty;
 
@@ -769,6 +771,36 @@ static void testXpn()
     bogus.replaceWithText ("this is not a zip file");
     auto bl = KitLoader::listPrograms (bogus, nullptr, error);
     CHECK (bl.empty() && error.isNotEmpty(), "non-zip XPN reports an error: " << error);
+
+    {
+        // Directory entry claiming ~1.9 GB for a small stored sample (found by the fuzzer: it was
+        // allocated before reading). Must fail without allocating.
+        juce::MemoryBlock zipBytes;
+        xpnFile.loadFileAsData (zipBytes);
+        auto* z = static_cast<juce::uint8*> (zipBytes.getData());
+        bool patched = false;
+        for (size_t i = 0; i + 46 < zipBytes.getSize(); ++i)
+        {
+            if (z[i] != 'P' || z[i + 1] != 'K' || z[i + 2] != 1 || z[i + 3] != 2)
+                continue;
+            auto nameLen = (size_t) (z[i + 28] | (z[i + 29] << 8));
+            if (juce::String::fromUTF8 (reinterpret_cast<const char*> (z + i + 46), (int) nameLen) == "[Samples]/XSnare.wav")
+            {
+                const juce::uint8 huge[4] { 0x00, 0x00, 0x00, 0x70 };
+                std::memcpy (z + i + 24, huge, 4);
+                patched = true;
+            }
+        }
+        auto damaged = workDir.getChildFile ("Damaged.xpn");
+        damaged.replaceWithData (zipBytes.getData(), zipBytes.getSize());
+        ZipReader zip (damaged);
+        juce::MemoryBlock out;
+        juce::String err;
+        auto idx = zip.indexOf ("[Samples]/XSnare.wav");
+        CHECK (patched && idx >= 0 && ! zip.readEntry (idx, out, err) && err.contains ("Damaged") && out.getSize() == 0,
+               "zip entry with an impossible size refused before allocating: " << err);
+        damaged.deleteFile();
+    }
 }
 
 //==============================================================================
@@ -902,6 +934,19 @@ static void testKeygroup()
 static void testFolderAndEdgeCases()
 {
     SECTION ("Folder kit, listing and edge cases");
+    {
+        // Invalid UTF-8 that JUCE's own check accepts (C4 3E); JUCE's XML parser then read past
+        // the end of the string (found by the fuzzer). bytesToText must fall back to Latin-1.
+        CHECK (isValidUtf8 ("caf\xc3\xa9", 5) && ! isValidUtf8 ("\xc4>", 2) && ! isValidUtf8 ("\xc0\xaf", 2)
+               && ! isValidUtf8 ("\xed\xa0\x80", 3) && ! isValidUtf8 ("\xf4\x90\x80\x80", 4) && ! isValidUtf8 ("\xe2\x82", 2),
+               "strict UTF-8 check");
+        juce::MemoryBlock bad ("<C><n></\xc4>", 10);
+        CHECK (bytesToText (bad) == juce::String (juce::CharPointer_UTF8 ("<C><n></\xc3\x84>")), "invalid UTF-8 read as Latin-1");
+        Kit k;
+        juce::StringArray w;
+        juce::String err;
+        parseXpm (bad, k, w, err);   // must not read out of bounds (checked under ASan by the fuzzer)
+    }
     auto dir = workDir.getChildFile ("LooseSamples");
     for (int i = 1; i <= 20; ++i)
         writeWav (dir.getChildFile ("Hit " + juce::String (i) + ".wav"), { 100.0 + i * 10, 0.3f, 0.1 });
@@ -912,6 +957,42 @@ static void testFolderAndEdgeCases()
     auto kit = KitLoader::kitFromAudioFiles (files, "Loose");
     CHECK (kit.pads[0].layers.size() == 1 && kit.pads[0].layers[0].name == "Hit 1", "natural sort: Hit 1 first");
     CHECK (kit.pads[1].layers[0].name == "Hit 2", "natural sort: Hit 2 second (not Hit 10)");
+
+    {
+        // WAV whose smpl chunk claims ~1.7 GB in a small file (found by the fuzzer: JUCE allocated
+        // it and expanded millions of loop entries). Refused quickly; a slightly cut-off trailing
+        // chunk still loads.
+        auto wav = makeWav ({ 220, 0.5f, 0.02 });
+        auto withChunk = [&] (juce::uint32 claimed, int actual)
+        {
+            juce::MemoryOutputStream o;
+            o.write (wav.getData(), wav.getSize());
+            o.write ("smpl", 4);
+            o.writeInt ((int) claimed);
+            for (int i = 0; i < actual; ++i)
+                o.writeByte (i < 32 ? 0 : (char) 0xff);   // numSampleLoops etc. at offset 28
+            auto mb = o.getMemoryBlock();
+            auto riffSize = (juce::uint32) mb.getSize() - 8;
+            std::memcpy (mb.begin() + 4, &riffSize, 4);
+            return mb;
+        };
+        auto bad = dir.getChildFile ("bad smpl.wav");
+        auto huge = withChunk (0x674f003c, 64);
+        bad.replaceWithData (huge.getData(), huge.getSize());
+        auto start = juce::Time::getMillisecondCounterHiRes();
+        juce::String err;
+        auto sd = loadSample ({ bad.getFullPathName(), {} }, err);
+        CHECK (sd == nullptr && err.contains ("damaged"), "WAV with an oversized smpl chunk refused: " << err);
+        CHECK (juce::Time::getMillisecondCounterHiRes() - start < 1000, "... and quickly");
+
+        auto cut = dir.getChildFile ("cut smpl.wav");
+        auto shortChunk = withChunk (60, 40);
+        cut.replaceWithData (shortChunk.getData(), shortChunk.getSize());
+        err = {};
+        CHECK (loadSample ({ cut.getFullPathName(), {} }, err) != nullptr, "WAV with a slightly cut-off chunk still loads: " << err);
+        bad.deleteFile();
+        cut.deleteFile();
+    }
     CHECK (kit.pads[19].layers.size() == 1 && kit.pads[20].layers.empty(), "20 samples on 20 pads");
 
     // Program listing in a folder
@@ -1591,6 +1672,73 @@ static void testUserFiles()
 }
 
 //==============================================================================
+//==============================================================================
+// Seed inputs for the fuzz targets (Tests/Fuzz): one valid file of every kind the fixtures make.
+static void writeFuzzCorpus (const juce::File& root)
+{
+    auto put = [&] (const juce::String& target, const juce::String& name, const juce::MemoryBlock& mb)
+    {
+        auto dir = root.getChildFile (target);
+        dir.createDirectory();
+        dir.getChildFile (name).replaceWithData (mb.getData(), mb.getSize());
+    };
+    auto text = [] (const juce::String& s) { return juce::MemoryBlock (s.toRawUTF8(), s.getNumBytesAsUTF8()); };
+
+    std::vector<XPad> pads { XPad { 1, { { "Kick" }, { "Kick Hard", 100, 127 } } },
+                             XPad { 2, { { "Snare" } }, 2, 1, 1, true, 0.9, 0.2, 3, false, 0.5, 2, 0.4 } };
+    put ("xpm", "drum.xpm", text (makeXpmXml ("Drum", pads, { { 1, 36 }, { 2, 38 } }, false, false)));
+    put ("xpm", "keygroup.xpm", text (makeXpmXml ("Keys", { XPad { 1, { { "Piano C3" } } } }, {}, true)));
+    put ("xpm", "mpc3.xpm", makeXpmJson ("Json Kit"));
+
+    put ("pgm", "mpc1000.pgm", makePgm1000 ({ { 0, 0, "BD_SOFT", 0, 70, 0 }, { 0, 1, "BD_HARD", 71, 127, 0 },
+                                              { 1, 0, "SNARE", 0, 127, 0 } }, { { 0, 36 }, { 1, 38 } }, 1));
+    put ("pgm", "mpc2000xl.pgm", makePgm2000 ({ "KICK1", "SNARE1", "SNARE2" }, { { 36, 0 }, { 38, 1 }, { 40, 2 } },
+                                              { { 0, 36 }, { 1, 38 } }, 38, 40));
+    put ("pgm", "mpc3000.pgm", makePgm3000 ({ "BD3000" }, { { 37, 0 } }));
+
+    put ("snd", "mpc2000xl.snd", makeSnd2000 ("KICK1", { 110, 0.5f, 0.05 }, 120));
+    put ("snd", "mpc2000xl-stereo.snd", makeSnd2000 ("ST", { 110, 0.5f, 0.05, 2 }));
+    put ("snd", "mpc3000.snd", makeSnd3000 ("BD3000", { 130, 0.5f, 0.05 }));
+
+    put ("audio", "mono16.wav", makeWav ({ 220, 0.5f, 0.02 }));
+    put ("audio", "stereo24.wav", makeWav ({ 220, 0.5f, 0.02, 2, 48000.0, 24 }));
+    {
+        // WAV with a smpl chunk (root note + loop), which Kaia reads
+        juce::StringPairArray meta;
+        meta.set ("MidiUnityNote", "60");
+        meta.set ("NumSampleLoops", "1");
+        meta.set ("Loop0Type", "0");
+        meta.set ("Loop0Start", "100");
+        meta.set ("Loop0End", "800");
+        juce::MemoryBlock mb;
+        juce::WavAudioFormat wav;
+        std::unique_ptr<juce::AudioFormatWriter> writer (wav.createWriterFor (new juce::MemoryOutputStream (mb, false), 44100.0, 1, 16, meta, 0));
+        juce::AudioBuffer<float> buf (1, 1000);
+        for (int i = 0; i < 1000; ++i)
+            buf.setSample (0, i, 0.3f * (float) std::sin (0.05 * i));
+        writer->writeFromAudioSampleBuffer (buf, 0, 1000);
+        writer.reset();
+        put ("audio", "loop.wav", mb);
+    }
+
+    juce::ZipFile::Builder builder;
+    auto add = [&] (const juce::String& path, const juce::MemoryBlock& mb, int compression = 9)
+    {
+        builder.addEntry (new juce::MemoryInputStream (mb, true), compression, path, juce::Time());
+    };
+    add ("Expansion.xml", text ("<?xml version=\"1.0\"?><expansion version=\"2.0.0.0\"><title>Fuzz</title>"
+                                "<manufacturer>Kaia</manufacturer><img>Cover.png</img></expansion>"));
+    add ("[Samples]/Kick.wav", makeWav ({ 120, 0.5f, 0.01 }));
+    add ("[Samples]/Snare.wav", makeWav ({ 330, 0.5f, 0.01 }), 0);
+    add ("Kits/Kit.xpm", text (makeXpmXml ("Kit", { XPad { 1, { { "Kick" } } }, XPad { 2, { { "Snare" } } } }, {}, false, false)));
+    add ("Cover.png", juce::MemoryBlock ("cover", 5));
+    juce::MemoryOutputStream zip;
+    builder.writeToStream (zip, nullptr);
+    put ("xpn", "pack.xpn", zip.getMemoryBlock());
+
+    std::cout << "fuzz corpus written to " << root.getFullPathName() << "\n";
+}
+
 int main (int argc, char** argv)
 {
     juce::File realData;
@@ -1601,6 +1749,11 @@ int main (int argc, char** argv)
         if (a == "--real-data" && i + 1 < argc) realData = juce::File (juce::String (argv[++i]));
         if (a == "--keep") keep = true;
         if (a == "--workdir" && i + 1 < argc) workDir = juce::File (juce::String (argv[++i]));
+        if (a == "--write-fuzz-corpus" && i + 1 < argc)
+        {
+            writeFuzzCorpus (juce::File::getCurrentWorkingDirectory().getChildFile (juce::String (argv[++i])));
+            return 0;
+        }
     }
 
     if (workDir == juce::File())

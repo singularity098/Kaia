@@ -74,6 +74,7 @@ JUCE 8 and the CLAP extensions are downloaded automatically during the first con
 | `KAIA_BUILD_TESTS` | ON | `KaiaTests`: parser and engine tests |
 | `KAIA_PORTABLE_LINUX` | OFF | static libstdc++ and a glibc 2.35 baseline, for redistributable binaries |
 | `KAIA_BUILD_HOST_TEST` | OFF | developer tools: host test harness and UI snapshot renderer |
+| `KAIA_BUILD_FUZZERS` | OFF | libFuzzer targets for the file readers (clang only, see `Tests/Fuzz/README.md`) |
 | `KAIA_JUCE_DIR` | | use a local JUCE checkout instead of downloading |
 
 ## Using Kaia
@@ -232,6 +233,8 @@ software can open them. Kaia detects them and says so; it does not try to unlock
   host harness (`KaiaHostTest`) that loads the built VST3 and LV2 like a DAW, plays every pad,
   restores saved state and checks multi-out routing.
 * The test suite also passes under AddressSanitizer and UndefinedBehaviorSanitizer.
+* The file readers (XPM, PGM, SND, XPN/zip and sample decoding) have coverage-guided fuzz
+  targets (libFuzzer with both sanitizers), see [Tests/Fuzz/README.md](Tests/Fuzz/README.md).
 
 Set `KAIA_DEBUG=1` in the environment to print diagnostics from the plugin to stderr.
 

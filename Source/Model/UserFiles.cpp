@@ -1,4 +1,5 @@
 #include "UserFiles.h"
+#include "../Formats/SampleSource.h"
 
 namespace kaia
 {
@@ -168,7 +169,7 @@ bool Presets::save (const Kit& kit, const juce::String& presetName, juce::String
 
 bool Presets::load (const juce::File& file, Kit& kit, juce::String& error)
 {
-    auto xml = juce::parseXML (file);
+    auto xml = parseXmlFile (file);
     if (xml == nullptr || ! xml->hasTagName ("KaiaPreset"))
     {
         error = file.getFileName() + " is not a Kaia preset.";

@@ -1,5 +1,6 @@
 #include "TriggerMap.h"
 #include "UserFiles.h"
+#include "../Formats/SampleSource.h"
 
 namespace kaia
 {
@@ -179,7 +180,7 @@ std::vector<DrumModule> CustomDrumMaps::list()
 
     for (const auto& e : juce::RangedDirectoryIterator (dir, false, juce::String ("*") + kExtension, juce::File::findFiles))
     {
-        auto xml = juce::parseXML (e.getFile());
+        auto xml = parseXmlFile (e.getFile());
         if (xml == nullptr || ! xml->hasTagName ("KaiaDrumMap"))
             continue;
         DrumModule m;

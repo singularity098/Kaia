@@ -216,3 +216,40 @@ if(KAIA_BUILD_HOST_TEST)
         PRIVATE KaiaFonts KaiaLogo juce::juce_audio_utils juce::juce_audio_formats juce::juce_dsp
         PUBLIC juce::juce_recommended_config_flags)
 endif()
+
+# ---------------------------------------------------------------------------
+# Fuzz targets (libFuzzer, clang only; see Tests/Fuzz/README.md)
+# ---------------------------------------------------------------------------
+option(KAIA_BUILD_FUZZERS "Build the libFuzzer targets (needs clang)" OFF)
+if(KAIA_BUILD_FUZZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "KAIA_BUILD_FUZZERS needs clang (libFuzzer): configure with -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang")
+    endif()
+
+    set(KAIA_FUZZ_SANITIZERS "address,undefined" CACHE STRING "Sanitizers for the fuzz targets (besides fuzzer)")
+    set(KAIA_FUZZ_FLAGS -fsanitize=fuzzer,${KAIA_FUZZ_SANITIZERS} -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g)
+
+    # The core sources and the JUCE modules are compiled once, instrumented for coverage
+    # (fuzzer-no-link) and the sanitizers; each target only adds its own small file.
+    set(KAIA_FUZZ_MODULES juce_core juce_audio_basics juce_audio_formats juce_data_structures juce_events)
+    add_library(KaiaFuzzCore STATIC ${KAIA_CORE_SOURCES})
+    target_include_directories(KaiaFuzzCore PUBLIC Source)
+    target_compile_definitions(KaiaFuzzCore PUBLIC ${KAIA_COMMON_DEFS} JUCE_STANDALONE_APPLICATION=1)
+    target_compile_options(KaiaFuzzCore PUBLIC
+        -fsanitize=fuzzer-no-link,${KAIA_FUZZ_SANITIZERS} -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g)
+    foreach(module ${KAIA_FUZZ_MODULES})
+        # PRIVATE: JUCE modules carry their .cpp files as interface sources; linking them PUBLIC
+        # would compile all of JUCE again into every fuzz target. Pass on headers and defines only.
+        target_link_libraries(KaiaFuzzCore PRIVATE juce::${module})
+        target_include_directories(KaiaFuzzCore PUBLIC $<TARGET_PROPERTY:juce::${module},INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(KaiaFuzzCore PUBLIC $<TARGET_PROPERTY:juce::${module},INTERFACE_COMPILE_DEFINITIONS>)
+    endforeach()
+    target_link_libraries(KaiaFuzzCore PUBLIC atomic rt dl pthread)
+
+    foreach(target Xpm Pgm Snd Audio Xpn)
+        add_executable(KaiaFuzz${target} Tests/Fuzz/Fuzz${target}.cpp)
+        target_compile_options(KaiaFuzz${target} PRIVATE ${KAIA_FUZZ_FLAGS})
+        target_link_options(KaiaFuzz${target} PRIVATE ${KAIA_FUZZ_FLAGS})
+        target_link_libraries(KaiaFuzz${target} PRIVATE KaiaFuzzCore)
+    endforeach()
+endif()

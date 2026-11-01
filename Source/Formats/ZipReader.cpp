@@ -1,4 +1,5 @@
 #include "ZipReader.h"
+#include "SampleSource.h"
 #include <map>
 #include <mutex>
 
@@ -17,10 +18,11 @@ namespace
     juce::uint32 rd32 (const juce::uint8* p) { return (juce::uint32) p[0] | ((juce::uint32) p[1] << 8) | ((juce::uint32) p[2] << 16) | ((juce::uint32) p[3] << 24); }
     juce::uint64 rd64 (const juce::uint8* p) { return (juce::uint64) rd32 (p) | ((juce::uint64) rd32 (p + 4) << 32); }
 
-    juce::String decodeName (const juce::uint8* p, int len, bool utf8Flag)
+    juce::String decodeName (const juce::uint8* p, int len)
     {
+        // The UTF-8 flag (bit 11) isn't trusted: only text that really is UTF-8 is decoded as such
         auto* chars = reinterpret_cast<const char*> (p);
-        if (utf8Flag || juce::CharPointer_UTF8::isValidString (chars, len))
+        if (isValidUtf8 (chars, (size_t) len))
             return juce::String::fromUTF8 (chars, len);
 
         // Fallback: treat as Latin-1 (close enough to CP437 for file names)
@@ -129,7 +131,8 @@ bool ZipReader::parse()
         }
     }
 
-    if (cdSize > (juce::uint64) 512 * 1024 * 1024 || (juce::int64) (cdOffset + cdSize) > in.getTotalLength())
+    auto fileSize = (juce::uint64) in.getTotalLength();
+    if (cdSize > (juce::uint64) 512 * 1024 * 1024 || cdOffset > fileSize || cdSize > fileSize - cdOffset)
     {
         error = file.getFileName() + " has a damaged directory.";
         return false;
@@ -164,7 +167,7 @@ bool ZipReader::parse()
         if (pos + 46 + nameLen + extraLen + commentLen > cdSize)
             break;
 
-        e.name = decodeName (h + 46, nameLen, (e.flags & 0x800) != 0).replaceCharacter ('\\', '/');
+        e.name = decodeName (h + 46, nameLen).replaceCharacter ('\\', '/');
 
         // Zip64 extended information
         auto* extra = h + 46 + nameLen;
@@ -252,6 +255,19 @@ bool ZipReader::readEntry (int index, juce::MemoryBlock& out, juce::String& erro
 
     auto dataStart = (juce::int64) e.localHeaderOffset + 30 + rd16 (lh + 26) + rd16 (lh + 28);
     auto size = (size_t) e.uncompressedSize;
+
+    // Check the sizes against the archive before allocating: a damaged directory can claim
+    // gigabytes for a tiny entry (found by Tests/Fuzz). Deflate can't expand more than ~1032:1.
+    auto fileSize = (juce::uint64) stream->getTotalLength();
+    auto available = (juce::uint64) dataStart <= fileSize ? fileSize - (juce::uint64) dataStart : 0;
+    if (e.compressedSize > available
+        || (e.method == 0 && e.uncompressedSize > e.compressedSize)
+        || (e.method == 8 && e.uncompressedSize > e.compressedSize * 1032 + 1024))
+    {
+        errorOut = "Damaged entry " + e.name + " (its size doesn't match the archive)";
+        return false;
+    }
+
     out.setSize (size, false);
 
     if (e.method == 0)

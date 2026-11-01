@@ -77,6 +77,8 @@ Tests/
                             when given a library
                             folder, files-filter.png with KAIA_SNAPSHOT_FILTER=<text>;
                             KAIA_SNAPSHOT_PAD_THEMES=1 adds one shot of the pads per colour theme)
+  Fuzz/                     libFuzzer targets (KAIA_BUILD_FUZZERS, clang): Xpm, Pgm, Snd, Audio, Xpn;
+                            README.md has build/run steps and the findings so far
 tools/
   make_fonts.py             makes Resources/Fonts/ from Jost[wght].ttf (needs fontTools)
   make_logo.py              makes the Resources/Logo/ SVGs from Michroma-Regular.ttf (needs fontTools);
@@ -201,7 +203,7 @@ JUCE 8.0.10 and clap-juce-extensions (pinned commit) are fetched by CMake unless
 
 Options: `KAIA_BUILD_PLUGIN` (ON), `KAIA_BUILD_CLAP` (ON), `KAIA_BUILD_TESTS` (ON),
 `KAIA_PORTABLE_LINUX` (OFF; use for release binaries), `KAIA_BUILD_HOST_TEST` (OFF; builds
-`KaiaHostTest` and `KaiaUiSnapshot`). Release builds use LTO and take 6-8 minutes on 2 cores
+`KaiaHostTest` and `KaiaUiSnapshot`), `KAIA_BUILD_FUZZERS` (OFF; clang only, libFuzzer + ASan/UBSan). Release builds use LTO and take 6-8 minutes on 2 cores
 (about 13 with the host-test tools as well); the tests-only build (`-DKAIA_BUILD_PLUGIN=OFF`)
 takes about a minute and is the one to iterate with for parser/engine work.
 
@@ -226,6 +228,15 @@ Real-data layout used so far (not in the repo): `DIR/mpcmaid/test.pgm` (MPCMaid)
 Sanitizers: configure a Debug build with `-DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"`
 (and the same linker flag) and `-DKAIA_BUILD_PLUGIN=OFF`; everything except the CPU-budget
 check must pass.
+
+Fuzzing (`Tests/Fuzz/README.md`): seeds come from `KaiaTests --write-fuzz-corpus <dir>`. Run the
+targets after touching a parser, `ZipReader`, `SndDecoder` or `loadSample`, and turn every fixed
+crash into a `KaiaTests` check. Text from outside files goes through `bytesToText` /
+`readTextFile` / `parseXmlFile` (strict `isValidUtf8`, Latin-1 fallback), never
+`File::loadFileAsString`, `juce::parseXML (File)` or `CharPointer_UTF8::isValidString`: JUCE
+accepts some invalid UTF-8 and its XML parser then reads out of bounds. `loadSample` refuses WAVs
+whose metadata chunks claim far more than the file holds (JUCE would allocate it). Known open
+finding: JUCE's MP3 decoder writes out of bounds on some corrupt files.
 
 Plugin binaries (Linux, headless):
 * pluginval: `xvfb-run -a pluginval --strictness-level 10 --validate-in-process --validate build/Kaia_artefacts/Release/VST3/Kaia.vst3`

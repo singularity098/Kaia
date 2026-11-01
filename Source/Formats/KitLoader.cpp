@@ -186,7 +186,7 @@ bool KitLoader::readPackArtwork (const juce::File& target, juce::MemoryBlock& im
     auto expansionXml = target.getChildFile ("Expansion.xml");
     if (expansionXml.existsAsFile())
     {
-        auto name = imageNameFromExpansionXml (expansionXml.loadFileAsString());
+        auto name = imageNameFromExpansionXml (readTextFile (expansionXml));
         if (name.isNotEmpty() && target.getChildFile (name).loadFileAsData (image) && image.getSize() > 0)
             return true;
     }
@@ -295,7 +295,7 @@ std::vector<ProgramEntry> KitLoader::listPrograms (const juce::File& target, Pac
         auto expansionXml = target.getChildFile ("Expansion.xml");
         if (expansionXml.existsAsFile())
         {
-            auto text = expansionXml.loadFileAsString();
+            auto text = readTextFile (expansionXml);
             readPackInfo (text, pack);
             auto img = imageNameFromExpansionXml (text);
             if (img.isNotEmpty())

@@ -1,5 +1,6 @@
 #include "Library.h"
 #include "../Model/UserFiles.h"
+#include "SampleSource.h"
 
 namespace kaia
 {
@@ -95,7 +96,7 @@ namespace
             auto expansionXml = dir.getChildFile ("Expansion.xml");
             if (expansionXml.existsAsFile())
             {
-                auto t = titleFromExpansionXml (expansionXml.loadFileAsString());
+                auto t = titleFromExpansionXml (readTextFile (expansionXml));
                 if (t.isNotEmpty())
                     pack.title = t;
             }
