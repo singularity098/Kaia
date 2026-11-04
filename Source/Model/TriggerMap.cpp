@@ -106,37 +106,38 @@ namespace
             m.push_back ({ id, name, brand, std::move (notes) });
         };
 
-        add ("roland-td3",   "Roland", "Roland TD-3",  rolandClassic());
-        add ("roland-td6",   "Roland", "Roland TD-6",  rolandClassic());
-        add ("roland-td8",   "Roland", "Roland TD-8",  rolandClassic());
-        add ("roland-td10",  "Roland", "Roland TD-10", rolandTd10());
-        add ("roland-td1",   "Roland", "Roland TD-1",  rolandModern());
-        add ("roland-td02",  "Roland", "Roland TD-02", rolandModern());
-        add ("roland-td07",  "Roland", "Roland TD-07", rolandModern());
-        add ("roland-td4",   "Roland", "Roland TD-4",  rolandModern());
-        add ("roland-td9",   "Roland", "Roland TD-9",  rolandModern());
-        add ("roland-td11",  "Roland", "Roland TD-11", rolandModern());
-        add ("roland-td12",  "Roland", "Roland TD-12", rolandModern());
-        add ("roland-td15",  "Roland", "Roland TD-15", rolandModern());
-        add ("roland-td17",  "Roland", "Roland TD-17", rolandModern());
-        add ("roland-td20",  "Roland", "Roland TD-20", rolandModern());
-        add ("roland-td25",  "Roland", "Roland TD-25", rolandModern());
-        add ("roland-td27",  "Roland", "Roland TD-27", rolandModern());
-        add ("roland-td30",  "Roland", "Roland TD-30", rolandModern());
-        add ("roland-td50",  "Roland", "Roland TD-50 / TD-50X", rolandModern());
-        add ("roland-vad",   "Roland", "Roland V71 / V51 / V31 (VAD)", rolandModern());
-
+        // Brands in alphabetical order (General MIDI last), each brand's modules by release year.
+        add ("alesis-dm10",    "Alesis", "Alesis DM10", alesis());
+        add ("alesis-surge",   "Alesis", "Alesis Surge / Command", alesis());
         add ("alesis-nitro",   "Alesis", "Alesis Nitro / Nitro Max / Nitro Pro", alesis());
         add ("alesis-turbo",   "Alesis", "Alesis Turbo / Debut", alesis());
-        add ("alesis-surge",   "Alesis", "Alesis Surge / Command", alesis());
-        add ("alesis-crimson", "Alesis", "Alesis Crimson II", alesis());
         add ("alesis-strike",  "Alesis", "Alesis Strike / Strike Pro", alesis());
+        add ("alesis-crimson", "Alesis", "Alesis Crimson II", alesis());
         add ("alesis-strata",  "Alesis", "Alesis Strata", alesis());
-        add ("alesis-dm10",    "Alesis", "Alesis DM10", alesis());
 
+        add ("roland-td10",  "Roland", "Roland TD-10", rolandTd10());
+        add ("roland-td8",   "Roland", "Roland TD-8",  rolandClassic());
+        add ("roland-td6",   "Roland", "Roland TD-6",  rolandClassic());
+        add ("roland-td20",  "Roland", "Roland TD-20", rolandModern());
+        add ("roland-td3",   "Roland", "Roland TD-3",  rolandClassic());
+        add ("roland-td12",  "Roland", "Roland TD-12", rolandModern());
+        add ("roland-td4",   "Roland", "Roland TD-4",  rolandModern());
+        add ("roland-td9",   "Roland", "Roland TD-9",  rolandModern());
+        add ("roland-td30",  "Roland", "Roland TD-30", rolandModern());
+        add ("roland-td15",  "Roland", "Roland TD-15", rolandModern());
+        add ("roland-td11",  "Roland", "Roland TD-11", rolandModern());
+        add ("roland-td1",   "Roland", "Roland TD-1",  rolandModern());
+        add ("roland-td25",  "Roland", "Roland TD-25", rolandModern());
+        add ("roland-td50",  "Roland", "Roland TD-50 / TD-50X", rolandModern());
+        add ("roland-td17",  "Roland", "Roland TD-17", rolandModern());
+        add ("roland-td27",  "Roland", "Roland TD-27", rolandModern());
+        add ("roland-td07",  "Roland", "Roland TD-07", rolandModern());
+        add ("roland-td02",  "Roland", "Roland TD-02", rolandModern());
+        add ("roland-vad",   "Roland", "Roland V71 / V51 / V31 (VAD)", rolandModern());
+
+        add ("yamaha-dtx700",  "Yamaha", "Yamaha DTX700 / DTX900", yamaha());
         add ("yamaha-dtx400",  "Yamaha", "Yamaha DTX400 / DTX402 series", yamaha());
         add ("yamaha-dtx500",  "Yamaha", "Yamaha DTX502 series", yamaha());
-        add ("yamaha-dtx700",  "Yamaha", "Yamaha DTX700 / DTX900", yamaha());
         add ("yamaha-dtxpro",  "Yamaha", "Yamaha DTX-PRO / DTX-PROX", yamaha());
         add ("yamaha-dtx6",    "Yamaha", "Yamaha DTX6 / DTX8 / DTX10", yamaha());
 

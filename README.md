@@ -142,9 +142,9 @@ decoder and its Linux mouse cursor then get small fixes (`cmake/PatchJuce.cmake`
   TD-10: 36 kick, 38 snare, 40 rim, 37 cross-stick, toms 41/39 → A09 up to 48/50 → A12, 42/22
   closed hi-hat, 46/26 open hi-hat, 44 pedal, 57 → A07 crash 1, 49/51/59 → A13 ride,
   53 → A14 bell, 55 → A16 crash 2, 52 and 10 → A15.
-  Supported: Roland TD-3/6/8/10 and TD-1/02/07/4/9/11/12/15/17/20/25/27/30/50 and VAD,
-  Alesis Nitro/Turbo/Surge/Command/Crimson/Strike/Strata/DM10, Yamaha DTX400–DTX10 and DTX-PRO,
-  and the General MIDI drum map (EFNOTE, Simmons, ATV, Millenium and most others). These are the
+  Supported (oldest first): Alesis DM10/Surge/Command/Nitro/Turbo/Debut/Strike/Crimson/Strata,
+  Roland TD-10/8/6/20/3/12/4/9/30/15/11/1/25/50/17/27/07/02 and VAD, Yamaha DTX700/900, DTX400,
+  DTX502, DTX-PRO and DTX6–DTX10, and the General MIDI drum map (EFNOTE, Simmons, ATV, Millenium and most others). These are the
   factory default notes. Keygroup (melodic) programs always keep their own key ranges.
 * **Your own drum maps**: the settings page shows which notes play each pad and the last note
   received. Click a pad there to *Learn* a note (hit the drum), type its notes, or remove them;
