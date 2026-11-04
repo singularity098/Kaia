@@ -87,7 +87,7 @@ tools/
   sandbox-sysroot.sh        header-only sysroot for build machines without the distro -dev packages
   xatoms.c                  pre-registers X11 atoms so JUCE windows work on a bare Xvfb
 cmake/glibc_compat.{h,c}    portable Linux build: glibc 2.35 baseline (see below)
-cmake/PatchJuce.cmake       Kaia's fixes to JUCE sources (MP3 decoder), applied after fetching JUCE
+cmake/PatchJuce.cmake       Kaia's fixes to JUCE sources (MP3 decoder, X11 cursor), applied after fetching JUCE
 packaging/install.sh        user/system install of the release archive (also `--from <build dir>`)
 build.sh                    one-command source build for users (`--deps`, `--install`)
 .github/workflows/build.yml CI: Linux (portable, ubuntu-22.04) + Windows + macOS, runs KaiaTests
@@ -170,11 +170,12 @@ A05 snare rim, A06 cross-stick, A07 crash 1, A08 HH open, A09 tom 4 (floor) .. A
 ride, A14 ride bell, A15 crash 2 edge, A16 crash 2; tom rims and the ride edge play the head/bow pad.
 The open hi-hat notes also play A04 (owner's request: both pads at once). This layout and the
 TD-10 notes come from the owner's own TD-10: toms reversed (low tom on A09), 22/26 hi-hat edges,
-52 and 10 -> A15. The TD-10 table is the owner's own choice: 49 -> A13 (with 59), 55 -> A16, and
-51, 53, 57 unmapped ("too much"); the other Roland classic modules keep 49/55 -> A07, 51/59 -> A13,
-53 -> A14, 57 -> A16. Note tables are factory defaults: Roland classic (TD-3..TD-10)
-36/38/40, toms 48/50 45/47 43/58 41/39, HH 42+22 / 46+26 / 44, crash 1 49/55, crash 2 57 + edge 52,
-ride 51/59, bell 53; modern Roland and Alesis add 37 cross-stick; Yamaha DTX toms 48/47/43 (DTX402
+52 and 10 -> A15. The TD-10 table is the owner's own choice: 49 -> A13 (with 51 and 59), 55 -> A16,
+57 -> A07, 53 -> A14; the other Roland classic modules keep 49/55 -> A07, 51/59 -> A13, 53 -> A14,
+57 -> A16. **Every factory map must give every pad a note** (checked by KaiaTests; the owner
+withdrew an earlier request to leave TD-10 hits unmapped: unmapping belongs in custom maps). Note tables are factory defaults: Roland classic (TD-3..TD-10)
+36/38/40, 37 cross-stick (no note of their own; GM side stick so the pad isn't empty), toms 48/50 45/47 43/58 41/39, HH 42+22 / 46+26 / 44, crash 1 49/55, crash 2 57 + edge 52,
+ride 51/59, bell 53; modern Roland and Alesis are the same table; Yamaha DTX toms 48/47/43 (DTX402
 reference), 37 closed rim, 83 foot splash; GM for the rest. Partly checked against the published
 TD-17/TD-27 and DTX402 maps; the rest is unverified. The active map is a note table in
 `TriggerMap::notes` (editable in Settings, saveable as `custom:<name>`); settings store it only when
@@ -201,10 +202,14 @@ cmake --build build
 ```
 JUCE 9.0.4 and clap-juce-extensions (pinned commit) are fetched by CMake unless
 `-DKAIA_JUCE_DIR=...` / `-DKAIA_CLAP_EXT_DIR=...` point at local checkouts. The fetched JUCE is
-patched by `cmake/PatchJuce.cmake` (MP3 decoder out-of-bounds write, from mpg123's CVE-2006-1655
-fix). It edits single lines, keeps JUCE's CRLF line endings, skips sources already patched, and
-stops with an error if the code no longer matches: on a JUCE bump, check whether JUCE fixed it and
-update or drop the fix. A local `KAIA_JUCE_DIR` is only checked (warning); patch it with
+patched by `cmake/PatchJuce.cmake`: the MP3 decoder out-of-bounds write (from mpg123's CVE-2006-1655
+fix), and the X11 normal cursor (JUCE sets the window's cursor to None = the parent's, so an
+embedded editor showed the host's cursor, e.g. Reaper's resize arrow when entered from the side;
+the patch defines XC_left_ptr, and `KaiaEditor::CursorRefresher` forces a cursor update on mouse
+enter, as JUCE already does on Windows/macOS). It runs on a fresh fetch and again at every configure
+(a no-op once patched), edits single lines, keeps JUCE's CRLF line endings, skips sources already
+patched, and stops with an error if the code no longer matches: on a JUCE bump, check whether JUCE
+fixed it and update or drop the fix. A local `KAIA_JUCE_DIR` is only checked (warning); patch it with
 `cmake -DJUCE_SOURCE_DIR=<dir> -P cmake/PatchJuce.cmake`.
 
 Options: `KAIA_BUILD_PLUGIN` (ON), `KAIA_BUILD_CLAP` (ON), `KAIA_BUILD_TESTS` (ON),

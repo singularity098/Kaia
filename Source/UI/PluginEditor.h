@@ -66,6 +66,22 @@ private:
     juce::Slider masterSlider;
     juce::AudioProcessorValueTreeState::SliderAttachment masterAttachment;
 
+    // Linux: re-sets the window's cursor whenever the mouse enters a component. JUCE skips the update
+    // when it thinks the normal cursor is already showing, and an embedded window that never set one
+    // shows the host's (Reaper's resize arrow when entered from the side). Windows and macOS force
+    // the update on enter themselves. Needs the X11 cursor fix in cmake/PatchJuce.cmake.
+    struct CursorRefresher : juce::MouseListener
+    {
+        void mouseEnter (const juce::MouseEvent& e) override
+        {
+            if (e.source.isMouse())
+            {
+                auto source = e.source;
+                source.forceMouseCursorUpdate();
+            }
+        }
+    } cursorRefresher;
+
     PadGrid padGrid;
     PadEditor padEditor;
     ProgramBrowser browser;

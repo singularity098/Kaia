@@ -42,10 +42,11 @@ namespace
 
     // Roland V-Drums before the TD-12 (TD-3 .. TD-10). Tom rims and the ride edge play the same
     // pad as the head/bow; crash 2's edge has its own pad. Hi-hat edges send 22 (closed) and
-    // 26 (open); the open hi-hat also plays the pedal pad.
+    // 26 (open); the open hi-hat also plays the pedal pad. These modules have no cross-stick
+    // note of their own; 37 (GM side stick) gives that pad one, so every pad has a note.
     DrumNoteTable rolandClassic()
     {
-        return { { 36, Z::Kick }, { 38, Z::Snare }, { 40, Z::SnareRim },
+        return { { 36, Z::Kick }, { 38, Z::Snare }, { 40, Z::SnareRim }, { 37, Z::CrossStick },
                  { 48, Z::Tom1 }, { 50, Z::Tom1 }, { 45, Z::Tom2 }, { 47, Z::Tom2 },
                  { 43, Z::Tom3 }, { 58, Z::Tom3 }, { 41, Z::Tom4 }, { 39, Z::Tom4 },
                  { 42, Z::HiHatClosed }, { 22, Z::HiHatClosed },
@@ -55,27 +56,24 @@ namespace
                  { 51, Z::Ride }, { 59, Z::Ride }, { 53, Z::RideBell } };
     }
 
-    // TD-10 (the owner's own module): the classic toms, snare and hi-hat, but the cymbals are
-    // 55 -> crash 2, 49 -> ride, 52 and 10 -> crash 2 edge; 51, 53 and 57 play nothing.
+    // TD-10 (the owner's own module): the classic drums and hi-hat, but the cymbals are
+    // 49 and 59 -> ride, 55 -> crash 2, 52 and 10 -> crash 2 edge. The other cymbal notes fill
+    // the remaining pads, so every pad plays: 57 -> crash 1, 51 -> ride, 53 -> ride bell.
+    // Unmapping hits is left to custom maps.
     DrumNoteTable rolandTd10()
     {
         DrumNoteTable t;
         for (auto& e : rolandClassic())
-            if (e.first < 49 || e.first == 50 || e.first == 52 || e.first == 58 || e.first == 59)
+            if (e.second != Z::Crash1 && e.second != Z::Crash2 && e.second != Z::Crash2Edge
+                 && e.second != Z::Ride && e.second != Z::RideBell)
                 t.push_back (e);
-        t.push_back ({ 49, Z::Ride });
-        t.push_back ({ 55, Z::Crash2 });
-        t.push_back ({ 10, Z::Crash2Edge });
+        t.insert (t.end(), { { 57, Z::Crash1 }, { 55, Z::Crash2 }, { 52, Z::Crash2Edge }, { 10, Z::Crash2Edge },
+                             { 49, Z::Ride }, { 51, Z::Ride }, { 59, Z::Ride }, { 53, Z::RideBell } });
         return t;
     }
 
-    // TD-9/11/12 and later: adds cross-stick.
-    DrumNoteTable rolandModern()
-    {
-        auto t = rolandClassic();
-        t.push_back ({ 37, Z::CrossStick });
-        return t;
-    }
+    // TD-9/11/12 and later: the same notes (with a real cross-stick on 37).
+    DrumNoteTable rolandModern()   { return rolandClassic(); }
 
     // Alesis modules follow the Roland layout.
     DrumNoteTable alesis()   { return rolandModern(); }

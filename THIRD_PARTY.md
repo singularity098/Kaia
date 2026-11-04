@@ -4,7 +4,7 @@
 
 | Component | License | |
 |---|---|---|
-| [JUCE 9](https://github.com/juce-framework/JUCE) | AGPLv3 (or commercial) | framework, plugin wrappers, audio file decoders; modified: `cmake/PatchJuce.cmake` fixes its MP3 decoder |
+| [JUCE 9](https://github.com/juce-framework/JUCE) | AGPLv3 (or commercial) | framework, plugin wrappers, audio file decoders; modified: `cmake/PatchJuce.cmake` fixes its MP3 decoder and the X11 normal cursor |
 | [lunasvg and plutovg](https://github.com/sammycage/lunasvg) by Samuel Ugochukwu (bundled with JUCE) | MIT | SVG rendering (the header wordmark) |
 | VST3 SDK (bundled with JUCE) | GPLv3 option of the Steinberg dual license | VST3 wrapper |
 | LV2 headers (bundled with JUCE) | ISC | LV2 wrapper |

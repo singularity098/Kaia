@@ -23,7 +23,8 @@ include(FetchContent)
 # ---------------------------------------------------------------------------
 # JUCE
 # ---------------------------------------------------------------------------
-# Kaia patches JUCE's MP3 decoder (an out-of-bounds write on corrupt files): cmake/PatchJuce.cmake
+# Kaia patches JUCE's MP3 decoder (an out-of-bounds write on corrupt files) and the X11 normal
+# cursor (embedded editors showed the host's cursor): cmake/PatchJuce.cmake
 if(KAIA_JUCE_DIR)
     execute_process(COMMAND ${CMAKE_COMMAND} -DJUCE_SOURCE_DIR=${KAIA_JUCE_DIR} -DCHECK_ONLY=ON
                             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake)
@@ -36,6 +37,14 @@ else()
         PATCH_COMMAND  ${CMAKE_COMMAND} -DJUCE_SOURCE_DIR=<SOURCE_DIR>
                        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake)
     FetchContent_MakeAvailable(JUCE)
+    # PATCH_COMMAND only runs on a fresh fetch: bring an existing build's JUCE up to date with
+    # fixes added since (a no-op when they're all in)
+    execute_process(COMMAND ${CMAKE_COMMAND} -DJUCE_SOURCE_DIR=${juce_SOURCE_DIR}
+                            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake
+                    RESULT_VARIABLE kaiaPatchResult)
+    if(NOT kaiaPatchResult EQUAL 0)
+        message(FATAL_ERROR "cmake/PatchJuce.cmake failed on ${juce_SOURCE_DIR}")
+    endif()
 endif()
 
 if(KAIA_BUILD_PLUGIN AND KAIA_BUILD_CLAP)

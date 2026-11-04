@@ -67,7 +67,7 @@ cmake --build build
 ```
 
 JUCE 9 and the CLAP extensions are downloaded automatically during the first configure; JUCE's MP3
-decoder then gets a small fix (`cmake/PatchJuce.cmake`).
+decoder and its Linux mouse cursor then get small fixes (`cmake/PatchJuce.cmake`).
 
 | CMake option | Default | |
 |---|---|---|
@@ -137,10 +137,11 @@ decoder then gets a small fix (`cmake/PatchJuce.cmake`).
   (22 closed, 26 open) play the closed/open hi-hat pads, and the open hi-hat notes (46, 26) play
   both A08 and A04, so an open hi-hat can be layered from two pads. Closed and pedal hi-hat cut
   off the open hi-hat (switchable); pads hit by the same note never cut each other. Notes the
-  module doesn't send are ignored. Roland TD-10: 36 kick, 38 snare, 40 rim, toms 41/39 →
-  A09 up to 48/50 → A12, 42/22 closed hi-hat, 46/26 open hi-hat, 44 pedal, 49/59 → A13,
-  55 → A16, 52 and 10 → A15; 51, 53 and 57 play nothing (crash 1 and the ride bell stay free
-  unless you add notes in Settings).
+  module doesn't send are ignored. Every factory map gives every pad at least one note (37 is
+  the cross-stick on all of them); to silence a hit, save a custom map without it. Roland
+  TD-10: 36 kick, 38 snare, 40 rim, 37 cross-stick, toms 41/39 → A09 up to 48/50 → A12, 42/22
+  closed hi-hat, 46/26 open hi-hat, 44 pedal, 57 → A07 crash 1, 49/51/59 → A13 ride,
+  53 → A14 bell, 55 → A16 crash 2, 52 and 10 → A15.
   Supported: Roland TD-3/6/8/10 and TD-1/02/07/4/9/11/12/15/17/20/25/27/30/50 and VAD,
   Alesis Nitro/Turbo/Surge/Command/Crimson/Strike/Strata/DM10, Yamaha DTX400–DTX10 and DTX-PRO,
   and the General MIDI drum map (EFNOTE, Simmons, ATV, Millenium and most others). These are the

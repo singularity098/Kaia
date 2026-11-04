@@ -17,6 +17,9 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
       settingsPanel (p)
 {
     setLookAndFeel (&lookAndFeel);
+   #if JUCE_LINUX
+    addMouseListener (&cursorRefresher, true);
+   #endif
 
     wordmark = juce::Drawable::createFromSVGString (juce::String::fromUTF8 (KaiaLogoData::kaiawordmark_svg, KaiaLogoData::kaiawordmark_svgSize));
     if (wordmark != nullptr)
@@ -126,6 +129,9 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
 
 KaiaEditor::~KaiaEditor()
 {
+   #if JUCE_LINUX
+    removeMouseListener (&cursorRefresher);
+   #endif
     processor.cancelMidiLearn();
     settings().removeChangeListener (this);
     processor.removeChangeListener (this);

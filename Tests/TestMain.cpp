@@ -14,6 +14,7 @@
 #include "Model/UserFiles.h"
 #include "Formats/Library.h"
 #include <atomic>
+#include <set>
 #include <chrono>
 #include <cstdlib>
 #include <new>
@@ -1253,6 +1254,11 @@ static void testTriggerMap()
         for (auto& [note, zone] : m.notes)
             ok = ok && note >= 0 && note < 128 && (int) zone < (int) DrumZone::NumZones;
         CHECK (ok, "module note table valid: " << m.name);
+
+        std::set<int> zones;
+        for (auto& [note, zone] : m.notes)
+            zones.insert ((int) zone);
+        CHECK (zones.size() == (size_t) DrumZone::NumZones, "every pad has a note: " << m.name);
     }
 
     auto table = td10.resolve (kit);
@@ -1267,15 +1273,16 @@ static void testTriggerMap()
     CHECK (plays (48) == 11 && plays (50) == 11, "TD-10 high tom head and rim -> A12");
     CHECK (plays (49) == 12 && plays (59) == 12 && plays (55) == 15 && plays (52) == 14 && plays (10) == 14,
            "TD-10 ride 49/59 -> A13, crash 2 55 -> A16, its edge 52/10 -> A15");
-    CHECK (table[51].empty() && table[53].empty() && table[57].empty(), "TD-10 leaves 51, 53 and 57 unmapped");
-    CHECK (table[37].empty() && table[60].empty(), "notes the module doesn't send are ignored");
+    CHECK (plays (57) == 6 && plays (51) == 12 && plays (53) == 13 && plays (37) == 5,
+           "TD-10 fills the other pads: 57 -> A07 crash 1, 51 -> A13 ride, 53 -> A14 bell, 37 -> A06 cross-stick");
+    CHECK (table[35].empty() && table[60].empty(), "notes the module doesn't send are ignored");
     CHECK (td10.notesForPad (kit, 7) == std::vector<int> ({ 26, 46 }), "notes for the open hi-hat pad");
 
     // Editing the note table
     {
         auto edited = td10;
         edited.moveNoteToZone (59, 15);
-        CHECK (edited.isEdited() && edited.notesForZone (15) == std::vector<int> ({ 55, 59 }) && edited.notesForZone (12) == std::vector<int> { 49 },
+        CHECK (edited.isEdited() && edited.notesForZone (15) == std::vector<int> ({ 55, 59 }) && edited.notesForZone (12) == std::vector<int> ({ 49, 51 }),
                "moving a note to another pad");
         edited.setZoneNotes (2, { 42, 22, 21 });
         edited.removeNote (22, 2);
@@ -1304,14 +1311,14 @@ static void testTriggerMap()
     SamplerEngine engine;
     engine.prepare (44100.0);
 
-    // Through the engine: note 36 now plays A01 (200 Hz); MPC default note 37 is silent
+    // Through the engine: note 36 now plays A01 (200 Hz); note 35 (a program note, not in the map) is silent
     engine.setRuntime (buildRuntime (kit, &samples, &td10));
-    auto out = render (engine, { { 0, 36, 127 }, { 22050, 37, 127 } }, 1.0, 44100.0, 256, true);
+    auto out = render (engine, { { 0, 36, 127 }, { 22050, 35, 127 } }, 1.0, 44100.0, 256, true);
     CHECK (std::abs (freqAt (out, 500) - 200.0) < 3, "MIDI 36 plays A01 through the TD-10 map (" << freqAt (out, 500) << " Hz)");
     CHECK (rms (out.get (0, 0), 22550, 4000) < 1.0e-6, "unmapped note is silent");
     CHECK (trackedAllocations.load() == 0, "no allocations with a trigger map");
     auto seq = engine.getLastInputNote();
-    CHECK ((seq & 0x7f) == 37 && (seq >> 8) == 2, "last input note reported for MIDI Learn");
+    CHECK ((seq & 0x7f) == 35 && (seq >> 8) == 2, "last input note reported for MIDI Learn");
 
     // Pad audition from the UI uses program notes and bypasses the map
     reset (engine);
