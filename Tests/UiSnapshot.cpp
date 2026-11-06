@@ -60,29 +60,6 @@ int main (int argc, char** argv)
     editor->setVisible (true);
     pump (300);
 
-    // KAIA_SNAPSHOT_PAD_THEMES=1: one shot of the pads per colour theme (before any pad lights up)
-    if (juce::SystemStats::getEnvironmentVariable ("KAIA_SNAPSHOT_PAD_THEMES", {}).isNotEmpty())
-    {
-        juce::Component* grid = nullptr;
-        for (auto* c : editor->getChildren())
-            if (dynamic_cast<PadGrid*> (c) != nullptr)
-                grid = c;
-        auto saved = Colours::padTheme;
-        for (int i = 0; grid != nullptr && i < (int) padThemes().size(); ++i)
-        {
-            Colours::padTheme = i;
-            editor->repaint();
-            pump (120);
-            auto img = editor->createComponentSnapshot (grid->getBounds(), true, 1.0f);
-            auto f = outDir.getChildFile ("padtheme-" + juce::String (i).paddedLeft ('0', 2) + "-" + padThemes()[(size_t) i].name + ".png");
-            f.deleteFile();
-            juce::FileOutputStream out (f);
-            juce::PNGImageFormat().writeImageToStream (img, out);
-        }
-        Colours::padTheme = saved;
-        editor->repaint();
-    }
-
     // Play a few pads in the background so some of them light up
     std::atomic<bool> running { true };
     std::thread audio ([&]
@@ -107,6 +84,33 @@ int main (int argc, char** argv)
 
     pump (900);
     save (*editor, outDir.getChildFile ("editor.png"));
+
+    // KAIA_SNAPSHOT_THEMES=1: the editor in every colour theme (theme-NN-<name>.png), then with the
+    // pad tint on (theme-NN-<name>-tint.png); the settings go back to the Default theme afterwards
+    if (juce::SystemStats::getEnvironmentVariable ("KAIA_SNAPSHOT_THEMES", {}).isNotEmpty())
+    {
+        if (auto* kaiaEditor = dynamic_cast<KaiaEditor*> (editor.get()))
+        {
+            juce::SharedResourcePointer<SharedSettings> settings;
+            for (auto tint : { false, true })
+            {
+                settings->get().setValue ("tintPads", tint);
+                for (int i = 0; i < (int) themes().size(); ++i)
+                {
+                    settings->get().setValue ("theme", themes()[(size_t) i].name);
+                    kaiaEditor->themeChanged();
+                    pump (500);
+                    auto name = juce::String (themes()[(size_t) i].name).removeCharacters (" ");
+                    save (*editor, outDir.getChildFile ("theme-" + juce::String (i).paddedLeft ('0', 2) + "-" + name
+                                                        + (tint ? "-tint" : "") + ".png"));
+                }
+            }
+            settings->get().setValue ("tintPads", false);
+            settings->get().setValue ("theme", themes().front().name);
+            kaiaEditor->themeChanged();
+            pump (300);
+        }
+    }
 
 
     auto click = [&editor] (const juce::String& text)
@@ -246,6 +250,25 @@ int main (int argc, char** argv)
     }
     click ("Settings");
     save (*editor, outDir.getChildFile ("settings.png"));
+
+    // The end of the settings (themes): settings-themes.png
+    std::function<juce::Viewport* (juce::Component&)> findViewport = [&findViewport] (juce::Component& c) -> juce::Viewport*
+    {
+        if (auto* v = dynamic_cast<juce::Viewport*> (&c))
+            if (dynamic_cast<SettingsPanel*> (v->getParentComponent()) != nullptr && v->getParentComponent()->isVisible())
+                return v;
+        for (auto* child : c.getChildren())
+            if (auto* v = findViewport (*child))
+                return v;
+        return nullptr;
+    };
+    if (auto* viewport = findViewport (*editor))
+    {
+        viewport->setViewPosition (0, viewport->getViewedComponent()->getHeight());
+        pump (300);
+        save (*editor, outDir.getChildFile ("settings-themes.png"));
+        viewport->setViewPosition (0, 0);
+    }
 
     running = false;
     audio.join();

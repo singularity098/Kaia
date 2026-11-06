@@ -52,17 +52,18 @@ Source/
     SamplerEngine           voices, MIDI, layer selection, chokes, envelopes, SVF filter, multi-out
     SincTable               polyphase windowed-sinc tables (24 taps, 256 phases, 8 anti-alias bands)
   PluginProcessor           buses (Main + Aux 1-16), loader thread, state save/restore, edit API
-  UI/                       LookAndFeel (near-black theme, Jost font via uiFont(), user accent colour,
-                            pad colour themes), PadGrid (MPC layout, pad 1 bottom-left, library
-                            drop target), PadEditor, ProgramBrowser, LibraryBrowser (TreeView,
+  UI/                       LookAndFeel (colour themes: Default + 11 gradient themes, Jost/Plex Mono via
+                            uiFont(), user accent colour, pad tint; see "Themes"), PadGrid (MPC layout,
+                            pad 1 bottom-left, library drop target), PadEditor, ProgramBrowser, LibraryBrowser (TreeView,
                             audition, drag to pads; TileView: pack covers in 2-4 columns),
                             FileBrowser (Files tab: plain folder tree over setting `filesFolder`,
                             filter over a background walk), SearchBox (text field + clear "x"),
                             KineticScroller (drag/fling/wheel scrolling on VBlank), SettingsPanel
                             (drum map editor), PluginEditor (header: pack artwork, last MIDI note;
                             the logo is a transparent link to GitHub)
-Resources/Fonts/            Jost Light/Regular/Bold (static instances of NAMsayin's variable Jost, OFL),
-                            embedded as binary data (KaiaFonts)
+Resources/Fonts/            Jost Light/Regular/Bold (static instances of NAMsayin's variable Jost, OFL) and
+                            IBM Plex Mono Light/Regular/SemiBold (the Phosphor theme; IBM's unmodified
+                            files, OFL with Reserved Font Name "Plex"), embedded as binary data (KaiaFonts)
 Resources/Logo/             the logo (made by tools/make_logo.py): a K built from pads (stem in the
                             text colour, arms lit in the accent) + "KAIA" in Michroma as outlines.
                             kaia-logo-dark/light (README), kaia-icon, kaia-app-icon(-N.png: plugin
@@ -73,10 +74,11 @@ Tests/
   TestMain.cpp              KaiaTests: synthetic fixtures for every format + engine/audio assertions
   HostTest.cpp              KaiaHostTest: loads the *built* VST3/LV2 binary like a DAW and checks audio
   UiSnapshot.cpp            KaiaUiSnapshot: renders the real editor to PNG (docs/editor.png; also
-                            library.png/library-favourites.png/library-tiles.png/files.png/settings.png
-                            when given a library
+                            library.png/library-favourites.png/library-tiles.png/files.png/settings.png/
+                            settings-themes.png when given a library
                             folder, files-filter.png with KAIA_SNAPSHOT_FILTER=<text>;
-                            KAIA_SNAPSHOT_PAD_THEMES=1 adds one shot of the pads per colour theme)
+                            KAIA_SNAPSHOT_THEMES=1 adds the editor in every theme, plain and with the pad
+                            tint: theme-NN-<name>[-tint].png)
   Fuzz/                     libFuzzer targets (KAIA_BUILD_FUZZERS, clang): Xpm, Pgm, Snd, Audio, Xpn;
                             README.md has build/run steps and the findings so far
 tools/
@@ -95,8 +97,25 @@ build.sh                    one-command source build for users (`--deps`, `--ins
 
 UI text: always use `uiFont (height, bold)`. It draws Jost 1.4x larger than the layout height (Jost
 has a small x-height), Regular below 24 px and Light above, Bold for bold text; the look-and-feel
-maps JUCE's own default fonts (menus, dialogs, text editors) to Jost too. Don't keep `Font`s in
-statics (they hold the typeface past JUCE's shutdown).
+maps JUCE's own default fonts (menus, dialogs, text editors) to Jost too. The Phosphor theme swaps in
+IBM Plex Mono (at 1.08x, so text takes about the same room). Don't keep `Font`s in statics (they hold
+the typeface past JUCE's shutdown); a component that caches fonts in a member refreshes them in
+`lookAndFeelChanged()` (a theme change sends one).
+
+Themes (`themes()` in LookAndFeel.cpp; settings `theme` = its name, `tintPads`, `accent`): the
+`Colours::` tokens are variables that `applyTheme()` sets. Index 0, *Default*, is Kaia's original
+look (the user's accent colour; keep it pixel-identical). The others set `Colours::gradient`: panels
+and outlines come from the background mixed with the theme's `tint`, pads are translucent so the
+corner glows show through, and highlights paint with the inkA -> inkB -> inkC gradient through
+`setInk()`, `drawInkText()` (the gradient spans the text, not the box), `drawInkOutline()` (Synthwave's
+`neon` adds a glow) and labels with `inkLabelProperty`. `Colours::accent` is inkB there, so plain
+accent uses still match. Knobs are tick rings in gradient themes, toggled buttons are outlined
+instead of filled. `KaiaEditor::themeChanged()` applies a new theme to an open window:
+`restyleComponents()` swaps colours set with `setColour` (stored as `jcclr_` properties) from the old
+theme's tokens to the new one's and re-sets uiFont() fonts on Labels/TextEditors, then
+`sendLookAndFeelChange()`. "Tint pads" (`fillPadTint()`) lays the theme's `dominant` colour over the
+pads at 13% (6% empty). Add a theme by appending to `themes()` (names are stored in settings: never
+rename one).
 
 Namespace is `kaia`. Code style follows JUCE (4-space indent, `function (args)` with a space,
 braces on their own line).

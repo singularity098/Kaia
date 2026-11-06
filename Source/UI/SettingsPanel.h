@@ -7,7 +7,7 @@ namespace kaia
 {
 
 // Settings shared by all Kaia instances: drum module (trigger map, editable and saveable as custom
-// maps), playback, library and Files tab folders, highlight and pad colours, and where Kaia keeps its files.
+// maps), playback, library and Files tab folders, colour theme (pad tint, highlight colour), and where Kaia keeps its files.
 class SettingsPanel : public juce::Component,
                       private juce::ChangeListener,
                       private juce::Timer
@@ -20,8 +20,7 @@ public:
     std::function<void()> onClose;
     std::function<void()> onChooseLibraryFolder;
     std::function<void()> onChooseFilesFolder;
-    std::function<void()> onAccentChanged;
-    std::function<void()> onPadThemeChanged;
+    std::function<void()> onThemeChanged;      // theme, pad tint or highlight colour changed (saved in the settings)
 
     void resized() override;
     void paint (juce::Graphics&) override;
@@ -29,7 +28,7 @@ public:
 
 private:
     class Swatches;
-    class PadThemePicker;
+    class ThemePicker;
     class MapView;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -69,7 +68,8 @@ private:
     juce::Label flingLabel;
     juce::Slider flingSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
     std::unique_ptr<Swatches> swatches;
-    std::unique_ptr<PadThemePicker> padThemePicker;
+    std::unique_ptr<ThemePicker> themePicker;
+    juce::ToggleButton tintToggle { "Tint the pads with the theme's colour" };
     juce::Label configPath;
     juce::TextButton showConfigButton { "Show" };
 

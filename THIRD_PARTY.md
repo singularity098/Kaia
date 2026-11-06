@@ -11,6 +11,7 @@
 | [CLAP](https://github.com/free-audio/clap) and [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) | MIT | CLAP wrapper |
 | zlib, FLAC, libvorbis, libpng (bundled with JUCE) | zlib / BSD-style | decoding |
 | [Jost](https://github.com/indestructible-type/Jost) by indestructible type* | SIL Open Font License 1.1 (text below) | the UI font, embedded |
+| [IBM Plex Mono](https://github.com/IBM/plex) by IBM Corp. | SIL Open Font License 1.1 (text below), Reserved Font Name "Plex" | the Phosphor theme's font, embedded unmodified (Light, Regular, SemiBold) |
 | [Michroma](https://github.com/googlefonts/Michroma-font) by Vernon Adams | SIL Open Font License 1.1 | the logo wordmark, as outlines (`Resources/Logo/`, `tools/make_logo.py`); the font itself is not distributed |
 
 "VST" is a trademark of Steinberg Media Technologies GmbH.
@@ -28,6 +29,13 @@ The file formats were implemented from these open descriptions and implementatio
 
 Real program files from the VMPC2000XL and MPCMaid repositories were used in testing; they are
 not distributed with Kaia.
+
+## IBM Plex Mono font license
+
+Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1 (the same license text
+as Jost's, below). Kaia embeds IBM's font files unmodified.
 
 ## Jost font license
 

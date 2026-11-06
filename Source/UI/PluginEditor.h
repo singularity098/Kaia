@@ -28,6 +28,10 @@ public:
     void fileDragMove (const juce::StringArray& files, int x, int y) override;
     void fileDragExit (const juce::StringArray& files) override;
     void filesDropped (const juce::StringArray& files, int x, int y) override;
+    void paintOverChildren (juce::Graphics&) override;
+
+    // Re-reads the theme, tint and highlight colour from the settings and restyles the whole window
+    void themeChanged();
 
 private:
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -46,7 +50,6 @@ private:
     void chooseLibraryFolder();
     void chooseFilesFolder();
     void savePresetDialog();
-    void accentChanged();
     void addRecent (const juce::File& f);
     juce::StringArray getRecents();
     juce::File lastFolder();
@@ -98,7 +101,7 @@ private:
     juce::ComponentBoundsConstrainer constrainer;
 
     void updateCover();
-    void padThemeChanged();
+    void loadWordmark();
 
     juce::Rectangle<int> headerArea, footerArea, progressArea, midiArea;
     juce::uint32 shownInputNote = 0;     // last MIDI note-on shown in the header

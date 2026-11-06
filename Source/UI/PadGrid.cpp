@@ -28,25 +28,41 @@ public:
 
         auto r = getLocalBounds().toFloat().reduced (3.0f);
         auto base = loaded ? Colours::padLoaded : Colours::padEmpty;
-        auto themed = padThemeColour (Colours::padTheme, slotInBank);
-        if (! themed.isTransparent())
-            base = loaded ? themed : themed.interpolatedWith (Colours::padEmpty, 0.65f);
-        auto dim = themed.isTransparent() ? Colours::textDim : Colours::text.withAlpha (0.6f);
-        if (pad != nullptr && pad->mute)
-            base = base.darker (0.3f);
+        auto dim = Colours::textDim;
+        bool sounding = voices > 0;
         g.setColour (base);
         g.fillRoundedRectangle (r, 6.0f);
+        fillPadTint (g, r, 6.0f, loaded);
+        if (pad != nullptr && pad->mute)
+        {
+            g.setColour (juce::Colours::black.withAlpha (0.3f));
+            g.fillRoundedRectangle (r, 6.0f);
+        }
+        if (sounding && Colours::gradient)
+        {
+            // A faint wash of the gradient's end colour while the pad sounds
+            g.setGradientFill (juce::ColourGradient (Colours::inkC.withAlpha (0.0f), r.getX(), r.getY(),
+                                                     Colours::inkC.withAlpha (0.12f), r.getX(), r.getBottom(), false));
+            g.fillRoundedRectangle (r, 6.0f);
+        }
 
         // Hit flash and sounding glow
         if (flash > 0.01f)
         {
-            g.setColour (Colours::accent.withAlpha (0.55f * flash));
+            g.setColour (Colours::accent.withAlpha ((Colours::gradient ? 0.32f : 0.55f) * flash));
             g.fillRoundedRectangle (r, 6.0f);
         }
-        if (voices > 0)
+        if (sounding)
         {
-            g.setColour (Colours::accent.withAlpha (0.9f));
-            g.fillRoundedRectangle (r.withTop (r.getBottom() - 3.0f).reduced (8.0f, 0.0f), 1.5f);
+            auto bar = r.withTop (r.getBottom() - 3.0f).reduced (8.0f, 0.0f);
+            if (Colours::gradient)
+            {
+                // The bar glows a little
+                setInk (g, bar, 0.25f);
+                g.fillRoundedRectangle (bar.expanded (2.0f, 2.0f), 3.0f);
+            }
+            setInk (g, bar, 0.9f);
+            g.fillRoundedRectangle (bar, 1.5f);
         }
 
         bool learning = grid.processor.getMidiLearnPad() == padIndex;
@@ -57,14 +73,28 @@ public:
             g.fillRoundedRectangle (r, 6.0f);
         }
 
-        g.setColour (dropTarget ? Colours::good : (selected || learning) ? Colours::accent : themed.isTransparent() ? Colours::outline : base.brighter (0.3f));
-        g.drawRoundedRectangle (r, 6.0f, dropTarget || selected || learning ? 2.0f : 1.0f);
+        if ((selected || learning) && ! dropTarget)
+        {
+            drawInkOutline (g, r, 6.0f, Colours::gradient ? 1.5f : 2.0f);
+        }
+        else
+        {
+            g.setColour (dropTarget ? Colours::good : Colours::outline);
+            g.drawRoundedRectangle (r, 6.0f, dropTarget ? 2.0f : 1.0f);
+        }
 
+        // The pad's name (A01): in the highlight when selected; gradient themes light every loaded pad's
         auto inner = r.reduced (8.0f, 6.0f).toNearestInt();
         g.setFont (uiFont (11.5f, true));
-        g.setColour (selected ? Colours::accent : dim);
-        g.drawText (pad != nullptr && pad->isKeygroup() ? "KG " + juce::String (padIndex + 1) : padName (padIndex),
-                    inner.removeFromTop (14), juce::Justification::topLeft);
+        auto padLabel = pad != nullptr && pad->isKeygroup() ? "KG " + juce::String (padIndex + 1) : padName (padIndex);
+        auto padLabelArea = inner.removeFromTop (14);
+        if (selected || (Colours::gradient && loaded))
+            drawInkText (g, padLabel, padLabelArea, juce::Justification::topLeft);
+        else
+        {
+            g.setColour (dim);
+            g.drawText (padLabel, padLabelArea, juce::Justification::topLeft);
+        }
 
         // Note / key range, top right
         if (pad != nullptr)
@@ -119,8 +149,13 @@ public:
         if (pad->layerMode == LayerMode::Cycle && n > 1)  tags << "RR ";
         if (pad->layerMode == LayerMode::Random && n > 1) tags << "RND ";
         g.setFont (uiFont (10.5f, true));
-        g.setColour (dim);
-        g.drawText (tags.trim(), footer, juce::Justification::centredRight);
+        if (Colours::gradient)
+            drawInkText (g, tags.trim(), footer, juce::Justification::centredRight);
+        else
+        {
+            g.setColour (dim);
+            g.drawText (tags.trim(), footer, juce::Justification::centredRight);
+        }
     }
 
     void mouseDown (const juce::MouseEvent& e) override

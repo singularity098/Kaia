@@ -54,52 +54,80 @@ private:
 };
 
 //==============================================================================
-// Each pad colour theme as a small 4x4 pad grid with its name
-class SettingsPanel::PadThemePicker : public juce::Component
+// Each colour theme as a small preview: its background, a few pads, its highlight and its name
+class SettingsPanel::ThemePicker : public juce::Component
 {
 public:
     std::function<void (int)> onPick;
 
-    static constexpr int kCellW = 64, kCellH = 78;
+    static constexpr int kCellW = 112, kCellH = 82;
 
     int heightForWidth (int width) const
     {
         auto cols = juce::jmax (1, width / kCellW);
-        return ((int) padThemes().size() + cols - 1) / cols * kCellH;
+        return ((int) themes().size() + cols - 1) / cols * kCellH;
     }
 
     void paint (juce::Graphics& g) override
     {
-        auto& themes = padThemes();
-        for (int i = 0; i < (int) themes.size(); ++i)
+        auto& list = themes();
+        for (int i = 0; i < (int) list.size(); ++i)
         {
+            auto& t = list[(size_t) i];
             auto c = cell (i);
-            auto grid = c.removeFromTop (kCellW).reduced (5).toFloat();
-            bool chosen = i == Colours::padTheme;
+            auto preview = c.removeFromTop (58).reduced (5).toFloat();
+            bool chosen = i == Colours::theme;
+            bool isDefault = i == 0;
+            juce::Colour bg (t.background), tint (isDefault ? 0xffffffffu : t.tint), text (t.text);
+            juce::Colour a (isDefault ? savedAccentColour() : juce::Colour (t.inkA));
+            juce::Colour b (isDefault ? a : juce::Colour (t.inkB)), e (isDefault ? a : juce::Colour (t.inkC));
+
+            g.setColour (bg);
+            g.fillRoundedRectangle (preview, 5.0f);
+            if (! isDefault && (t.glowA >> 24) != 0)
+            {
+                juce::Colour glow (t.glowA);
+                auto centre = preview.getTopRight();
+                g.setGradientFill (juce::ColourGradient (glow.withMultipliedAlpha (2.0f), centre, glow.withAlpha (0.0f),
+                                                         centre.translated (preview.getWidth() * 0.8f, 0.0f), true));
+                g.fillRoundedRectangle (preview, 5.0f);
+            }
+
+            // Four pads, the first one selected
+            auto pads = preview.reduced (7.0f, 8.0f).removeFromLeft (preview.getHeight() - 16.0f);
+            auto pw = pads.getWidth() / 2.0f;
+            for (int p = 0; p < 4; ++p)
+            {
+                auto r = juce::Rectangle<float> (pads.getX() + (float) (p % 2) * pw, pads.getY() + (float) (p / 2) * pw, pw, pw).reduced (1.5f);
+                g.setColour (isDefault ? juce::Colour (0xff1c1f24) : bg.interpolatedWith (tint, 0.05f));
+                g.fillRoundedRectangle (r, 2.0f);
+                juce::ColourGradient grad (a, r.getX(), r.getY(), e, r.getRight(), r.getBottom(), false);
+                grad.addColour (0.55, b);
+                if (p == 0)
+                    g.setGradientFill (grad);
+                else
+                    g.setColour (isDefault ? juce::Colour (0xff272a30) : bg.interpolatedWith (tint, 0.14f));
+                g.drawRoundedRectangle (r, 2.0f, 1.0f);
+            }
+
+            // Its name in its own highlight, and a gradient bar
+            auto right = preview.reduced (6.0f).withTrimmedLeft (pads.getWidth() + 8.0f);
+            juce::ColourGradient grad (a, right.getX(), 0.0f, e, right.getRight(), 0.0f, false);
+            grad.addColour (0.55, b);
+            g.setGradientFill (grad);
+            g.fillRoundedRectangle (right.withTop (right.getBottom() - 3.0f), 1.5f);
+            g.setFont (uiFont (13.0f));
+            g.setColour (text);
+            g.drawText ("Aa", right.withTrimmedBottom (6.0f).toNearestInt(), juce::Justification::centredLeft);
+
             if (chosen)
             {
                 g.setColour (Colours::text);
-                g.drawRoundedRectangle (grid.expanded (3.0f), 6.0f, 2.0f);
+                g.drawRoundedRectangle (preview.expanded (3.0f), 7.0f, 1.5f);
             }
-
-            auto pw = grid.getWidth() / 4.0f;
-            for (int p = 0; p < kPadsPerBank; ++p)
-            {
-                auto col = p % 4, row = 3 - p / 4;
-                auto r = juce::Rectangle<float> (grid.getX() + (float) col * pw, grid.getY() + (float) row * pw, pw, pw).reduced (1.0f);
-                auto colour = padThemeColour (i, p);
-                g.setColour (colour.isTransparent() ? Colours::padLoaded : colour);
-                g.fillRoundedRectangle (r, 2.0f);
-                if (colour.isTransparent())
-                {
-                    g.setColour (Colours::outline);
-                    g.drawRoundedRectangle (r, 2.0f, 0.8f);
-                }
-            }
-
             g.setColour (chosen ? Colours::text : Colours::textDim);
-            g.setFont (uiFont (11.0f, chosen));
-            g.drawText (themes[(size_t) i].name, c, juce::Justification::centredTop);
+            g.setFont (uiFont (11.5f, chosen));
+            g.drawText (t.name, c, juce::Justification::centredTop);
         }
     }
 
@@ -107,7 +135,7 @@ public:
     {
         if (e.mouseWasDraggedSinceMouseDown())
             return;
-        for (int i = 0; i < (int) padThemes().size(); ++i)
+        for (int i = 0; i < (int) themes().size(); ++i)
             if (cell (i).contains (e.getPosition()) && onPick)
                 onPick (i);
     }
@@ -143,15 +171,14 @@ public:
         {
             auto r = cell (i);
             bool learning = i == learningZone;
-            auto themed = padThemeColour (Colours::padTheme, i);
-            g.setColour (themed.isTransparent() ? Colours::panelRaised : themed);
+            g.setColour (Colours::panelRaised);
             g.fillRoundedRectangle (r.toFloat(), 4.0f);
+            fillPadTint (g, r.toFloat(), 4.0f, true);
             if (learning)
             {
                 g.setColour (Colours::accent.withAlpha (0.15f + 0.25f * pulse));
                 g.fillRoundedRectangle (r.toFloat(), 4.0f);
-                g.setColour (Colours::accent);
-                g.drawRoundedRectangle (r.toFloat(), 4.0f, 1.5f);
+                drawInkOutline (g, r.toFloat(), 4.0f, 1.5f);
             }
             else if (i == hoverZone && map.usesModule())
             {
@@ -164,12 +191,11 @@ public:
             for (auto n : notes)
                 noteText.add (juce::String (n));
 
-            auto dim = themed.isTransparent() ? Colours::textDim : Colours::text.withAlpha (0.6f);
+            auto dim = Colours::textDim;
             auto inner = r.reduced (6, 3);
             auto top = inner.removeFromTop (17);
             g.setFont (uiFont (11.0f, true));
-            g.setColour (Colours::accent);
-            g.drawText (padName (i), top.removeFromLeft (30), juce::Justification::centredLeft);
+            drawInkText (g, padName (i), top.removeFromLeft (30), juce::Justification::centredLeft);
             g.setColour (dim);
             g.setFont (uiFont (11.0f));
             if (map.usesModule())
@@ -233,7 +259,7 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     viewport.setScrollOnDragMode (juce::Viewport::ScrollOnDragMode::all);   // touch screens
     addAndMakeVisible (viewport);
 
-    for (auto* text : { "Drum module", "Playback", "Library", "Highlight colour", "Pad colours", "Files" })
+    for (auto* text : { "Drum module", "Playback", "Library", "Theme", "Highlight colour", "Files" })
     {
         auto* l = headings.add (new juce::Label ({}, juce::String (text).toUpperCase()));
         l->setFont (uiFont (12.0f, true));
@@ -314,28 +340,26 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     };
     content.addAndMakeVisible (flingSlider);
 
-    // Colours
-    swatches = std::make_unique<Swatches>();
-    swatches->onPick = [this] (juce::Colour c)
+    // Theme, pad tint, and the Default theme's highlight colour
+    auto saveAndApply = [this] (const juce::String& key, const juce::var& value)
     {
         juce::SharedResourcePointer<SharedSettings> settings;
-        settings->get().setValue ("accent", c.toDisplayString (false));
+        settings->get().setValue (key, value);
         settings->get().saveIfNeeded();
-        if (onAccentChanged)
-            onAccentChanged();
+        if (onThemeChanged)
+            onThemeChanged();
     };
-    content.addAndMakeVisible (*swatches);
+    themePicker = std::make_unique<ThemePicker>();
+    themePicker->onPick = [saveAndApply] (int theme) { saveAndApply ("theme", themes()[(size_t) theme].name); };
+    content.addAndMakeVisible (*themePicker);
 
-    padThemePicker = std::make_unique<PadThemePicker>();
-    padThemePicker->onPick = [this] (int theme)
-    {
-        juce::SharedResourcePointer<SharedSettings> settings;
-        settings->get().setValue ("padTheme", padThemes()[(size_t) theme].name);
-        settings->get().saveIfNeeded();
-        if (onPadThemeChanged)
-            onPadThemeChanged();
-    };
-    content.addAndMakeVisible (*padThemePicker);
+    tintToggle.setTooltip ("Colour the pads slightly with the theme's main colour (the highlight colour in the Default theme)");
+    tintToggle.onClick = [this, saveAndApply] { saveAndApply ("tintPads", tintToggle.getToggleState()); };
+    content.addAndMakeVisible (tintToggle);
+
+    swatches = std::make_unique<Swatches>();
+    swatches->onPick = [saveAndApply] (juce::Colour c) { saveAndApply ("accent", c.toDisplayString (false)); };
+    content.addAndMakeVisible (*swatches);
 
     // Files
     showConfigButton.onClick = [] { UserFiles::configDirectory().createDirectory(); UserFiles::configDirectory().revealToUser(); };
@@ -640,8 +664,11 @@ void SettingsPanel::refresh()
                         + "\nPresets are saved in " + UserFiles::presetsDirectory().getFullPathName(), juce::dontSendNotification);
 
     mapView->repaint();
+    tintToggle.setToggleState (Colours::tintPads, juce::dontSendNotification);
+    swatches->setVisible (Colours::theme == 0);
+    headings[4]->setVisible (Colours::theme == 0);
     swatches->repaint();
-    padThemePicker->repaint();
+    themePicker->repaint();
     resized();
 }
 
@@ -711,12 +738,18 @@ void SettingsPanel::resized()
 
     y += 18;
     headings[3]->setBounds (row (22));
-    swatches->setBounds (row (34).withWidth ((int) accentOptions().size() * 38));
+    auto pickerW = juce::jmin (w, 6 * ThemePicker::kCellW);
+    themePicker->setBounds (row (themePicker->heightForWidth (pickerW)).withWidth (pickerW));
+    y += 4;
+    tintToggle.setBounds (row (24));
 
-    y += 18;
-    headings[4]->setBounds (row (22));
-    auto pickerW = juce::jmin (w, 8 * PadThemePicker::kCellW);
-    padThemePicker->setBounds (row (padThemePicker->heightForWidth (pickerW)).withWidth (pickerW));
+    // Only the Default theme takes the highlight colour; the others bring their own
+    if (swatches->isVisible())
+    {
+        y += 18;
+        headings[4]->setBounds (row (22));
+        swatches->setBounds (row (34).withWidth ((int) accentOptions().size() * 38));
+    }
 
     y += 18;
     headings[5]->setBounds (row (22));
@@ -730,8 +763,7 @@ void SettingsPanel::resized()
 
 void SettingsPanel::paint (juce::Graphics& g)
 {
-    g.setColour (Colours::panel);
-    g.fillRoundedRectangle (getLocalBounds().toFloat(), 8.0f);
+    paintPanel (g, getLocalBounds().toFloat());
     g.setColour (Colours::text);
     g.setFont (uiFont (17.0f, true));
     g.drawText ("Settings", getLocalBounds().reduced (12).removeFromTop (26), juce::Justification::centredLeft);

@@ -21,9 +21,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     addMouseListener (&cursorRefresher, true);
    #endif
 
-    wordmark = juce::Drawable::createFromSVGString (juce::String::fromUTF8 (KaiaLogoData::kaiawordmark_svg, KaiaLogoData::kaiawordmark_svgSize));
-    if (wordmark != nullptr)
-        wordmark->replaceColour (juce::Colours::white, Colours::text);
+    loadWordmark();
 
     openButton.setTooltip ("Open an MPC program (.xpm, .pgm), an expansion (.xpn), a folder, or audio files");
     openButton.onClick = [this] { showOpenMenu(); };
@@ -33,7 +31,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     filesButton.onClick = [this] { togglePanel (Panel::Files); };
     libraryButton.setTooltip ("Browse your whole library: presets, expansions, programs, pads and samples");
     libraryButton.onClick = [this] { togglePanel (Panel::Library); };
-    settingsButton.setTooltip ("Drum module, library folder, highlight colour");
+    settingsButton.setTooltip ("Drum module, library folder, theme");
     settingsButton.onClick = [this] { togglePanel (Panel::Settings); };
     prevButton.setTooltip ("Previous program");
     nextButton.setTooltip ("Next program");
@@ -52,6 +50,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     kitLabel.setFont (uiFont (19.0f, true));
     kitLabel.setColour (juce::Label::textColourId, Colours::text);
     kitLabel.setMinimumHorizontalScale (0.6f);
+    kitLabel.getProperties().set (inkLabelProperty, Colours::gradient);
     formatLabel.setFont (uiFont (12.0f));
     formatLabel.setColour (juce::Label::textColourId, Colours::textDim);
     statusLabel.setFont (uiFont (13.0f));
@@ -110,8 +109,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     settingsPanel.onClose = [this] { showPanel (Panel::PadEditor); };
     settingsPanel.onChooseLibraryFolder = [this] { chooseLibraryFolder(); };
     settingsPanel.onChooseFilesFolder = [this] { chooseFilesFolder(); };
-    settingsPanel.onAccentChanged = [this] { accentChanged(); };
-    settingsPanel.onPadThemeChanged = [this] { padThemeChanged(); };
+    settingsPanel.onThemeChanged = [this] { themeChanged(); };
     addChildComponent (settingsPanel);
     settings().addChangeListener (this);
 
@@ -141,31 +139,36 @@ KaiaEditor::~KaiaEditor()
 //==============================================================================
 void KaiaEditor::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
-    // Settings changed (maybe by another instance): pick up a new highlight colour
+    // Settings changed (maybe by another instance): pick up a new theme or highlight colour
     if (source == &settings())
     {
-        if (savedAccentColour() != Colours::accent)
-            accentChanged();
-        if (savedPadTheme() != Colours::padTheme)
-            padThemeChanged();
+        auto theme = savedTheme();
+        if (theme != Colours::theme || savedTintPads() != Colours::tintPads
+            || (theme == 0 && savedAccentColour() != Colours::accent))
+            themeChanged();
         return;
     }
     refreshAll();
 }
 
-void KaiaEditor::accentChanged()
+void KaiaEditor::themeChanged()
 {
-    setAccentColour (savedAccentColour());
+    auto before = ThemeSnapshot::current();
+    applyTheme (savedTheme(), savedAccentColour(), savedTintPads());
     lookAndFeel.applyColours();
+    restyleComponents (*this, before);
+    kitLabel.getProperties().set (inkLabelProperty, Colours::gradient);
+    loadWordmark();
     sendLookAndFeelChange();
+    settingsPanel.refresh();
     refreshAll();
 }
 
-void KaiaEditor::padThemeChanged()
+void KaiaEditor::loadWordmark()
 {
-    Colours::padTheme = savedPadTheme();
-    padGrid.refresh();
-    settingsPanel.refresh();
+    wordmark = juce::Drawable::createFromSVGString (juce::String::fromUTF8 (KaiaLogoData::kaiawordmark_svg, KaiaLogoData::kaiawordmark_svgSize));
+    if (wordmark != nullptr)
+        wordmark->replaceColour (juce::Colours::white, Colours::text);
 }
 
 void KaiaEditor::updateCover()
@@ -251,9 +254,28 @@ void KaiaEditor::paint (juce::Graphics& g)
 {
     g.fillAll (Colours::background);
 
-    g.setColour (Colours::panel);
-    g.fillRect (headerArea);
-    g.fillRect (footerArea);
+    if (Colours::gradient)
+    {
+        // Gradient themes: faint glows in two corners instead of filled header and footer bars
+        auto& theme = themes()[(size_t) Colours::theme];
+        auto w = (float) getWidth(), h = (float) getHeight();
+        auto glow = [&g] (juce::uint32 argb, juce::Point<float> centre, float radius)
+        {
+            if ((argb >> 24) == 0)
+                return;
+            juce::Colour c (argb);
+            g.setGradientFill (juce::ColourGradient (c, centre, c.withAlpha (0.0f), centre.translated (radius, 0.0f), true));
+            g.fillEllipse (juce::Rectangle<float> (radius * 2.0f, radius * 2.0f).withCentre (centre));
+        };
+        glow (theme.glowA, { w * 0.85f, 0.0f }, w * 0.62f);
+        glow (theme.glowB, { 0.0f, h }, w * 0.5f);
+    }
+    else
+    {
+        g.setColour (Colours::panel);
+        g.fillRect (headerArea);
+        g.fillRect (footerArea);
+    }
     g.setColour (Colours::outline);
     g.drawHorizontalLine (headerArea.getBottom(), 0.0f, (float) getWidth());
     g.drawHorizontalLine (footerArea.getY(), 0.0f, (float) getWidth());
@@ -270,7 +292,9 @@ void KaiaEditor::paint (juce::Graphics& g)
             for (int col = 0; col < 4; ++col)
             {
                 auto on = padK[row][col] == 'X';
-                g.setColour (! on ? Colours::panelRaised : col == 0 ? Colours::text : Colours::accent);
+                // Gradient themes: the arms run along the gradient, top right to bottom right
+                g.setColour (! on ? Colours::panelRaised : col == 0 ? Colours::text
+                                  : Colours::gradient ? inkAt ((float) row / 4.0f) : Colours::accent);
                 g.fillRoundedRectangle (icon.getX() + (float) col * 28.0f * unit, icon.getY() + (float) row * 28.0f * unit,
                                         24.0f * unit, 24.0f * unit, 5.0f * unit);
             }
@@ -292,17 +316,24 @@ void KaiaEditor::paint (juce::Graphics& g)
         auto r = progressArea.toFloat();
         g.setColour (Colours::panelRaised);
         g.fillRoundedRectangle (r, 3.0f);
-        g.setColour (Colours::accent);
+        setInk (g, r);
         g.fillRoundedRectangle (r.withWidth (juce::jmax (6.0f, r.getWidth() * shownProgress)), 3.0f);
     }
 
     // Last MIDI note received
     {
         auto r = midiArea.toFloat();
-        g.setColour (Colours::panelRaised.interpolatedWith (Colours::accent, 0.45f * midiFlash));
+        g.setColour (Colours::panelRaised.interpolatedWith (Colours::accent, (Colours::gradient ? 0.25f : 0.45f) * midiFlash));
         g.fillRoundedRectangle (r, 5.0f);
-        g.setColour (midiFlash > 0.0f ? Colours::accent : Colours::outline);
-        g.drawRoundedRectangle (r.reduced (0.5f), 5.0f, 1.0f);
+        if (Colours::gradient)
+        {
+            drawInkOutline (g, r.reduced (0.5f), 5.0f);
+        }
+        else
+        {
+            g.setColour (midiFlash > 0.0f ? Colours::accent : Colours::outline);
+            g.drawRoundedRectangle (r.reduced (0.5f), 5.0f, 1.0f);
+        }
 
         auto inner = midiArea.reduced (8, 4);
         if (inner.getWidth() > 96)
@@ -319,7 +350,10 @@ void KaiaEditor::paint (juce::Graphics& g)
         auto numberArea = inner.removeFromLeft (38);
         g.setColour (any ? Colours::text : Colours::textDim);
         g.setFont (uiFont (22.0f, true));
-        g.drawText (any ? juce::String (note) : juce::String ("--"), numberArea, juce::Justification::centred);
+        if (any && Colours::gradient)
+            drawInkText (g, juce::String (note), numberArea, juce::Justification::centred);
+        else
+            g.drawText (any ? juce::String (note) : juce::String ("--"), numberArea, juce::Justification::centred);
 
         g.setFont (uiFont (11.0f));
         g.setColour (Colours::textDim);
@@ -335,6 +369,17 @@ void KaiaEditor::paint (juce::Graphics& g)
     g.setFont (uiFont (11.0f));
     g.drawText ("MASTER", masterSlider.getBounds().translated (0, 0).withY (headerArea.getBottom() - 14).withHeight (12),
                 juce::Justification::centred);
+}
+
+void KaiaEditor::paintOverChildren (juce::Graphics& g)
+{
+    // Phosphor: faint CRT scanlines over everything (only the rows being repainted)
+    if (! themes()[(size_t) Colours::theme].scanlines)
+        return;
+    auto clip = g.getClipBounds();
+    g.setColour (juce::Colours::black.withAlpha (0.16f));
+    for (int y = clip.getY() - clip.getY() % 3; y < clip.getBottom(); y += 3)
+        g.fillRect (clip.getX(), y, clip.getWidth(), 1);
 }
 
 void KaiaEditor::resized()

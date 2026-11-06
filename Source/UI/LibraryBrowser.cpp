@@ -115,7 +115,10 @@ public:
 
         g.setColour (isDisabled() ? Colours::textDim : (isSelected() ? Colours::accent : (isHeading() ? Colours::textDim : Colours::text)));
         g.setFont (isHeading() ? fonts.heading : isBold() ? fonts.bold : fonts.plain);
-        g.drawText (text, r, juce::Justification::centredLeft, true);
+        if (isSelected() && ! isDisabled())
+            drawInkText (g, text, r, juce::Justification::centredLeft);
+        else
+            g.drawText (text, r, juce::Justification::centredLeft, true);
     }
 
     void itemClicked (const juce::MouseEvent& e) override
@@ -1486,8 +1489,7 @@ void LibraryBrowser::updatePreviewState()
 
 void LibraryBrowser::paint (juce::Graphics& g)
 {
-    g.setColour (Colours::panel);
-    g.fillRoundedRectangle (getLocalBounds().toFloat(), 8.0f);
+    paintPanel (g, getLocalBounds().toFloat());
 
     auto h = headerArea;
     h.removeFromRight (300);

@@ -28,6 +28,7 @@ public:
     std::function<void()> onChooseFolder;
 
     void resized() override;
+    void lookAndFeelChanged() override   { fonts = Fonts(); repaint(); }   // a theme may change the font
     void paint (juce::Graphics&) override;
     void visibilityChanged() override;
     void mouseUp (const juce::MouseEvent&) override;

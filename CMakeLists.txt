@@ -95,7 +95,7 @@ set(KAIA_PLUGIN_SOURCES
     Source/UI/SettingsPanel.cpp
     Source/UI/PluginEditor.cpp)
 
-# Jost, the UI font (static instances made by tools/make_fonts.py)
+# Jost, the UI font (static instances made by tools/make_fonts.py), and IBM Plex Mono (the Phosphor theme)
 if(KAIA_BUILD_PLUGIN OR KAIA_BUILD_HOST_TEST)
     juce_add_binary_data(KaiaFonts
         HEADER_NAME KaiaFonts.h
@@ -103,7 +103,10 @@ if(KAIA_BUILD_PLUGIN OR KAIA_BUILD_HOST_TEST)
         SOURCES
             Resources/Fonts/Jost-Light.ttf
             Resources/Fonts/Jost-Regular.ttf
-            Resources/Fonts/Jost-Bold.ttf)
+            Resources/Fonts/Jost-Bold.ttf
+            Resources/Fonts/IBMPlexMono-Light.ttf
+            Resources/Fonts/IBMPlexMono-Regular.ttf
+            Resources/Fonts/IBMPlexMono-SemiBold.ttf)
 
     # The wordmark of the header logo (tools/make_logo.py; the pad K is drawn in code)
     juce_add_binary_data(KaiaLogo

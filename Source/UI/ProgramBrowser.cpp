@@ -103,9 +103,12 @@ void ProgramBrowser::paintListBoxItem (int row, juce::Graphics& g, int width, in
         g.setColour (current ? Colours::accent.withAlpha (0.22f) : Colours::panelRaised);
         g.fillRoundedRectangle (area.reduced (4, 1).toFloat(), 4.0f);
     }
-    g.setColour (current ? Colours::accent : Colours::text);
+    g.setColour (Colours::text);
     g.setFont (uiFont (18.0f));
-    g.drawText (r.text, area.reduced (16, 0), juce::Justification::centredLeft);
+    if (current)
+        drawInkText (g, r.text, area.reduced (16, 0), juce::Justification::centredLeft);
+    else
+        g.drawText (r.text, area.reduced (16, 0), juce::Justification::centredLeft);
 }
 
 void ProgramBrowser::listBoxItemClicked (int row, const juce::MouseEvent&)
@@ -145,8 +148,7 @@ void ProgramBrowser::resized()
 
 void ProgramBrowser::paint (juce::Graphics& g)
 {
-    g.setColour (Colours::panel);
-    g.fillRoundedRectangle (getLocalBounds().toFloat(), 8.0f);
+    paintPanel (g, getLocalBounds().toFloat());
 
     auto& info = processor.getPackInfo();
     auto h = headerArea;     // the pack's artwork is shown in the editor's header

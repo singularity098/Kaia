@@ -81,9 +81,12 @@ public:
             g.drawText (detail, r.removeFromRight (juce::jmin (r.getWidth() / 2, detailWidth)), juce::Justification::centredRight);
         }
 
-        g.setColour (isSelected() ? Colours::accent : Colours::text);
+        g.setColour (Colours::text);
         g.setFont (isBold() ? fonts.bold : fonts.plain);
-        g.drawText (text, r, juce::Justification::centredLeft, true);
+        if (isSelected())
+            drawInkText (g, text, r, juce::Justification::centredLeft);
+        else
+            g.drawText (text, r, juce::Justification::centredLeft, true);
     }
 
     void itemClicked (const juce::MouseEvent& e) override
@@ -577,8 +580,7 @@ void FileBrowser::timerCallback()
 
 void FileBrowser::paint (juce::Graphics& g)
 {
-    g.setColour (Colours::panel);
-    g.fillRoundedRectangle (getLocalBounds().toFloat(), 8.0f);
+    paintPanel (g, getLocalBounds().toFloat());
 
     auto h = headerArea;
     h.removeFromRight (160);

@@ -140,7 +140,7 @@ void WaveformView::paint (juce::Graphics& g)
 
     g.saveState();
     g.reduceClipRegion (juce::Rectangle<float>::leftTopRightBottom (x0, r.getY(), x1, r.getBottom()).toNearestInt());
-    g.setColour (Colours::accent.withAlpha (0.85f));
+    setInk (g, inner, Colours::gradient ? 0.92f : 0.85f);
     g.fillPath (wave);
     g.restoreState();
 
@@ -255,7 +255,7 @@ public:
     void paint (juce::Graphics& g) override
     {
         auto r = getLocalBounds().toFloat().reduced (0.5f, 1.0f);
-        g.setColour (selected ? Colours::accent.withAlpha (0.12f) : Colours::panelRaised.withAlpha (0.5f));
+        g.setColour (selected ? Colours::accent.withAlpha (Colours::gradient ? 0.09f : 0.12f) : Colours::panelRaised.withAlpha (0.5f));
         g.fillRoundedRectangle (r, 3.0f);
         g.setColour (Colours::textDim);
         g.setFont (uiFont (11.0f, true));
@@ -297,6 +297,7 @@ PadEditor::PadEditor (KaiaProcessor& p)
 {
     padLabel.setFont (uiFont (20.0f, true));
     padLabel.setColour (juce::Label::textColourId, Colours::accent);
+    padLabel.getProperties().set (inkLabelProperty, true);
     addAndMakeVisible (padLabel);
 
     nameLabel.setFont (uiFont (15.0f));
@@ -610,22 +611,35 @@ void PlayButton::paintButton (juce::Graphics& g, bool highlighted, bool down)
 {
     auto r = getLocalBounds().toFloat().reduced (0.5f);
     auto on = isEnabled();
-    g.setColour (down ? Colours::accent : highlighted ? Colours::panelRaised.brighter (0.15f) : Colours::panelRaised);
+    auto gradient = Colours::gradient && on;
+    g.setColour (down && ! gradient ? Colours::accent : highlighted || down ? Colours::panelRaised.brighter (0.15f) : Colours::panelRaised);
     g.fillRoundedRectangle (r, 4.0f);
-    g.setColour (down ? Colours::accent : Colours::outline);
-    g.drawRoundedRectangle (r, 4.0f, 1.0f);
+    if (gradient)
+        drawInkOutline (g, r, 4.0f);
+    else
+    {
+        g.setColour (down ? Colours::accent : Colours::outline);
+        g.drawRoundedRectangle (r, 4.0f, 1.0f);
+    }
 
     auto content = getLocalBounds().reduced (12, 0);
     auto icon = content.removeFromLeft (14).toFloat().withSizeKeepingCentre (11.0f, 12.0f);
     juce::Path triangle;
     triangle.addTriangle (icon.getTopLeft(), icon.getBottomLeft(), { icon.getRight(), icon.getCentreY() });
-    auto ink = down ? juce::Colours::black : on ? Colours::accent : Colours::textDim;
-    g.setColour (ink);
+    if (gradient)
+        setInk (g, icon);
+    else
+        g.setColour (down ? juce::Colours::black : on ? Colours::accent : Colours::textDim);
     g.fillPath (triangle);
 
     content.removeFromLeft (8);
-    g.setColour (down ? juce::Colours::black : on ? Colours::text : Colours::textDim);
     g.setFont (uiFont (13.0f, true));
+    if (gradient)
+    {
+        drawInkText (g, "Play", content, juce::Justification::centredLeft);
+        return;
+    }
+    g.setColour (down ? juce::Colours::black : on ? Colours::text : Colours::textDim);
     g.drawText ("Play", content, juce::Justification::centredLeft);
 }
 
@@ -643,8 +657,7 @@ void PlayButton::buttonStateChanged()
 
 void PadEditor::paint (juce::Graphics& g)
 {
-    g.setColour (Colours::panel);
-    g.fillRoundedRectangle (getLocalBounds().toFloat(), 8.0f);
+    paintPanel (g, getLocalBounds().toFloat());
 
     // Column headings for the layer table
     auto h = layersHeaderArea.reduced (2, 0);
