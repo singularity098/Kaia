@@ -53,7 +53,7 @@ Source/
     SincTable               polyphase windowed-sinc tables (24 taps, 256 phases, 8 anti-alias bands)
   PluginProcessor           buses (Main + Aux 1-16), loader thread, state save/restore, edit API
   UI/                       LookAndFeel (colour themes: Default + 11 gradient themes, Jost/Plex Mono via
-                            uiFont(), user accent colour, pad tint; see "Themes"), PadGrid (MPC layout,
+                            uiFont(), pad tint; see "Themes"), PadGrid (MPC layout,
                             pad 1 bottom-left, library drop target), PadEditor, ProgramBrowser, LibraryBrowser (TreeView,
                             audition, drag to pads; TileView: pack covers in 2-4 columns),
                             FileBrowser (Files tab: plain folder tree over setting `filesFolder`,
@@ -102,9 +102,10 @@ IBM Plex Mono (at 1.08x, so text takes about the same room). Don't keep `Font`s 
 the typeface past JUCE's shutdown); a component that caches fonts in a member refreshes them in
 `lookAndFeelChanged()` (a theme change sends one).
 
-Themes (`themes()` in LookAndFeel.cpp; settings `theme` = its name, `tintPads`, `accent`): the
+Themes (`themes()` in LookAndFeel.cpp; settings `theme` = its name, `tintPads`): the
 `Colours::` tokens are variables that `applyTheme()` sets. Index 0, *Default*, is Kaia's original
-look (the user's accent colour; keep it pixel-identical). The others set `Colours::gradient`: panels
+look (blue accent 0xff3d8bff; keep it pixel-identical; the user-picked highlight colour was
+removed 2026-11-06, the themes replace it, and the old `accent` setting is ignored). The others set `Colours::gradient`: panels
 and outlines come from the background mixed with the theme's `tint`, pads are translucent so the
 corner glows show through, and highlights paint with the inkA -> inkB -> inkC gradient through
 `setInk()`, `drawInkText()` (the gradient spans the text, not the box), `drawInkOutline()` (Synthwave's

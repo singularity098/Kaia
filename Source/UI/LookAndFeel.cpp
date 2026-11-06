@@ -44,38 +44,12 @@ juce::Font uiFont (float height, bool bold)
     return juce::Font (juce::FontOptions (face).withHeight (size));
 }
 
-const std::vector<AccentOption>& accentOptions()
-{
-    static const std::vector<AccentOption> options {
-        { "Blue",    0xff3d8bff },
-        { "Cyan",    0xff2ec4d6 },
-        { "Green",   0xff3fca7e },
-        { "Lime",    0xffa4d63b },
-        { "Amber",   0xffffb627 },
-        { "Orange",  0xffff7a3d },
-        { "Red",     0xffff4f5e },
-        { "Pink",    0xffff5fa8 },
-        { "Purple",  0xffa070ff },
-        { "Silver",  0xffc3c8d2 },
-    };
-    return options;
-}
-
-juce::Colour savedAccentColour()
-{
-    juce::SharedResourcePointer<SharedSettings> settings;
-    auto hex = settings->get().getValue ("accent");
-    if (hex.length() >= 6)
-        return juce::Colour ((juce::uint32) hex.getHexValue64()).withAlpha (1.0f);
-    return juce::Colour (accentOptions().front().argb);
-}
-
 //==============================================================================
 const std::vector<Theme>& themes()
 {
     //                  background  tint        text        textDim     inkA        inkB        inkC        glowA       glowB       dominant
     static const std::vector<Theme> list {
-        { "Default",    0xff0a0b0d, 0,          0xffe6e7ea, 0xff858a94, 0,          0,          0,          0,          0,          0 },
+        { "Default",    0xff0a0b0d, 0,          0xffe6e7ea, 0xff858a94, 0xff3d8bff, 0xff3d8bff, 0xff3d8bff, 0,          0,          0xff3d8bff },
         { "Iris",       0xff09080c, 0xffffffff, 0xffe6e2ee, 0xff8e889c, 0xffd59ae0, 0xffa85eea, 0xff7d84ff, 0x12a85eea, 0x0d7278fe, 0xffa85eea },
         { "Ember",      0xff0c0807, 0xffffdcc8, 0xfff0e2d8, 0xff9c8a80, 0xffffb36b, 0xffff6a3d, 0xffe0336f, 0x14ff6e28, 0x0dc8285a, 0xffff6a3d },
         { "Abyss",      0xff05090d, 0xffa0e6ff, 0xffd8eaf0, 0xff7f99a5, 0xff7ff5e0, 0xff2ec8e8, 0xff3a7bff, 0x1200c8dc, 0x0f285aff, 0xff2ec8e8 },
@@ -108,7 +82,7 @@ bool savedTintPads()
     return settings->get().getBoolValue ("tintPads", false);
 }
 
-void applyTheme (int index, juce::Colour defaultAccent, bool tint)
+void applyTheme (int index, bool tint)
 {
     auto& list = themes();
     index = juce::jlimit (0, (int) list.size() - 1, index);
@@ -129,8 +103,9 @@ void applyTheme (int index, juce::Colour defaultAccent, bool tint)
         Colours::outline     = juce::Colour (0xff272a30);
         Colours::padEmpty    = juce::Colour (0xff131518);
         Colours::padLoaded   = juce::Colour (0xff1c1f24);
-        Colours::accent = Colours::inkA = Colours::inkB = Colours::inkC = Colours::dominant = defaultAccent;
-        Colours::accentDim = defaultAccent.withMultipliedBrightness (0.5f).withMultipliedSaturation (0.8f);
+        auto accent = juce::Colour (t.inkA);
+        Colours::accent = Colours::inkA = Colours::inkB = Colours::inkC = Colours::dominant = accent;
+        Colours::accentDim = accent.withMultipliedBrightness (0.5f).withMultipliedSaturation (0.8f);
         return;
     }
 
@@ -291,7 +266,7 @@ void restyleComponents (juce::Component& root, const ThemeSnapshot& before)
 
 KaiaLookAndFeel::KaiaLookAndFeel()
 {
-    applyTheme (savedTheme(), savedAccentColour(), savedTintPads());
+    applyTheme (savedTheme(), savedTintPads());
     applyColours();
 }
 

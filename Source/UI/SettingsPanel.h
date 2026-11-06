@@ -27,7 +27,6 @@ public:
     void visibilityChanged() override;
 
 private:
-    class Swatches;
     class ThemePicker;
     class MapView;
 
@@ -67,7 +66,6 @@ private:
     juce::TextButton chooseFilesButton { "Choose folder..." };
     juce::Label flingLabel;
     juce::Slider flingSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
-    std::unique_ptr<Swatches> swatches;
     std::unique_ptr<ThemePicker> themePicker;
     juce::ToggleButton tintToggle { "Tint the pads with the theme's colour" };
     juce::Label configPath;

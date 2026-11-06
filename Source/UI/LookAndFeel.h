@@ -33,16 +33,7 @@ namespace Colours
     inline juce::Colour dominant { 0xff3d8bff };
 }
 
-struct AccentOption
-{
-    const char* name;
-    juce::uint32 argb;
-};
-
-const std::vector<AccentOption>& accentOptions();     // the first one is the default
-juce::Colour savedAccentColour();                     // from the settings file
-
-// Colour themes. The first one ("Default") is Kaia's original look, with the user's highlight colour;
+// Colour themes. The first one ("Default") is Kaia's original look (blue highlights);
 // the others are dark themes with a gradient for highlights (the Xythos/Modometer look and relatives).
 struct Theme
 {
@@ -61,7 +52,7 @@ struct Theme
 const std::vector<Theme>& themes();
 int savedTheme();                                     // index into themes(), from the settings file ("theme")
 bool savedTintPads();                                 // setting "tintPads", off by default
-void applyTheme (int index, juce::Colour defaultAccent, bool tint);   // sets the Colours
+void applyTheme (int index, bool tint);   // sets the Colours
 
 // Highlights. In gradient themes these paint with the gradient across `area` (left to right);
 // in the Default theme with the accent colour.

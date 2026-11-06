@@ -6,54 +6,6 @@ namespace kaia
 {
 
 //==============================================================================
-class SettingsPanel::Swatches : public juce::Component,
-                                public juce::TooltipClient
-{
-public:
-    std::function<void (juce::Colour)> onPick;
-
-    void paint (juce::Graphics& g) override
-    {
-        auto& options = accentOptions();
-        for (int i = 0; i < (int) options.size(); ++i)
-        {
-            auto r = cell (i).toFloat().reduced (3.0f);
-            juce::Colour c (options[(size_t) i].argb);
-            g.setColour (c);
-            g.fillRoundedRectangle (r, 5.0f);
-            if (c == Colours::accent)
-            {
-                g.setColour (Colours::text);
-                g.drawRoundedRectangle (r.expanded (2.0f), 6.0f, 2.0f);
-            }
-        }
-    }
-
-    void mouseUp (const juce::MouseEvent& e) override
-    {
-        if (e.mouseWasDraggedSinceMouseDown())
-            return;
-        auto& options = accentOptions();
-        for (int i = 0; i < (int) options.size(); ++i)
-            if (cell (i).contains (e.getPosition()) && onPick)
-                onPick (juce::Colour (options[(size_t) i].argb));
-    }
-
-    juce::String getTooltip() override
-    {
-        auto p = getMouseXYRelative();
-        auto& options = accentOptions();
-        for (int i = 0; i < (int) options.size(); ++i)
-            if (cell (i).contains (p))
-                return options[(size_t) i].name;
-        return {};
-    }
-
-private:
-    juce::Rectangle<int> cell (int i) const { return { i * 38, 0, 38, 34 }; }
-};
-
-//==============================================================================
 // Each colour theme as a small preview: its background, a few pads, its highlight and its name
 class SettingsPanel::ThemePicker : public juce::Component
 {
@@ -79,8 +31,8 @@ public:
             bool chosen = i == Colours::theme;
             bool isDefault = i == 0;
             juce::Colour bg (t.background), tint (isDefault ? 0xffffffffu : t.tint), text (t.text);
-            juce::Colour a (isDefault ? savedAccentColour() : juce::Colour (t.inkA));
-            juce::Colour b (isDefault ? a : juce::Colour (t.inkB)), e (isDefault ? a : juce::Colour (t.inkC));
+            juce::Colour a (t.inkA);
+            juce::Colour b (t.inkB), e (t.inkC);
 
             g.setColour (bg);
             g.fillRoundedRectangle (preview, 5.0f);
@@ -259,7 +211,7 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     viewport.setScrollOnDragMode (juce::Viewport::ScrollOnDragMode::all);   // touch screens
     addAndMakeVisible (viewport);
 
-    for (auto* text : { "Drum module", "Playback", "Library", "Theme", "Highlight colour", "Files" })
+    for (auto* text : { "Drum module", "Playback", "Library", "Theme", "Files" })
     {
         auto* l = headings.add (new juce::Label ({}, juce::String (text).toUpperCase()));
         l->setFont (uiFont (12.0f, true));
@@ -340,7 +292,7 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     };
     content.addAndMakeVisible (flingSlider);
 
-    // Theme, pad tint, and the Default theme's highlight colour
+    // Theme and pad tint
     auto saveAndApply = [this] (const juce::String& key, const juce::var& value)
     {
         juce::SharedResourcePointer<SharedSettings> settings;
@@ -353,13 +305,9 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     themePicker->onPick = [saveAndApply] (int theme) { saveAndApply ("theme", themes()[(size_t) theme].name); };
     content.addAndMakeVisible (*themePicker);
 
-    tintToggle.setTooltip ("Colour the pads slightly with the theme's main colour (the highlight colour in the Default theme)");
+    tintToggle.setTooltip ("Colour the pads slightly with the theme's main colour (blue in the Default theme)");
     tintToggle.onClick = [this, saveAndApply] { saveAndApply ("tintPads", tintToggle.getToggleState()); };
     content.addAndMakeVisible (tintToggle);
-
-    swatches = std::make_unique<Swatches>();
-    swatches->onPick = [saveAndApply] (juce::Colour c) { saveAndApply ("accent", c.toDisplayString (false)); };
-    content.addAndMakeVisible (*swatches);
 
     // Files
     showConfigButton.onClick = [] { UserFiles::configDirectory().createDirectory(); UserFiles::configDirectory().revealToUser(); };
@@ -665,9 +613,6 @@ void SettingsPanel::refresh()
 
     mapView->repaint();
     tintToggle.setToggleState (Colours::tintPads, juce::dontSendNotification);
-    swatches->setVisible (Colours::theme == 0);
-    headings[4]->setVisible (Colours::theme == 0);
-    swatches->repaint();
     themePicker->repaint();
     resized();
 }
@@ -743,16 +688,8 @@ void SettingsPanel::resized()
     y += 4;
     tintToggle.setBounds (row (24));
 
-    // Only the Default theme takes the highlight colour; the others bring their own
-    if (swatches->isVisible())
-    {
-        y += 18;
-        headings[4]->setBounds (row (22));
-        swatches->setBounds (row (34).withWidth ((int) accentOptions().size() * 38));
-    }
-
     y += 18;
-    headings[5]->setBounds (row (22));
+    headings[4]->setBounds (row (22));
     auto cfg = row (58);
     showConfigButton.setBounds (cfg.removeFromRight (60).withHeight (26));
     configPath.setBounds (cfg);

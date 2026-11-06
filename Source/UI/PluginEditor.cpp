@@ -139,12 +139,11 @@ KaiaEditor::~KaiaEditor()
 //==============================================================================
 void KaiaEditor::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
-    // Settings changed (maybe by another instance): pick up a new theme or highlight colour
+    // Settings changed (maybe by another instance): pick up a new theme or pad tint
     if (source == &settings())
     {
         auto theme = savedTheme();
-        if (theme != Colours::theme || savedTintPads() != Colours::tintPads
-            || (theme == 0 && savedAccentColour() != Colours::accent))
+        if (theme != Colours::theme || savedTintPads() != Colours::tintPads)
             themeChanged();
         return;
     }
@@ -154,7 +153,7 @@ void KaiaEditor::changeListenerCallback (juce::ChangeBroadcaster* source)
 void KaiaEditor::themeChanged()
 {
     auto before = ThemeSnapshot::current();
-    applyTheme (savedTheme(), savedAccentColour(), savedTintPads());
+    applyTheme (savedTheme(), savedTintPads());
     lookAndFeel.applyColours();
     restyleComponents (*this, before);
     kitLabel.getProperties().set (inkLabelProperty, Colours::gradient);
