@@ -120,7 +120,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     // zooms to fit, so only a floor against unusably small windows is needed
     constrainer.setMinimumSize (kMinLayoutWidth / 2, kMinLayoutHeight / 2);
     constrainer.setMaximumSize (16384, 16384);
-    auto savedWidth = processor.editorWidth, savedHeight = processor.editorHeight;
+    int savedWidth = processor.editorWidth.load(), savedHeight = processor.editorHeight.load();
     setConstrainer (&constrainer);
     setResizable (true, true);
     setSize (juce::jlimit (kMinLayoutWidth / 2, 16384, savedWidth), juce::jlimit (kMinLayoutHeight / 2, 16384, savedHeight));
