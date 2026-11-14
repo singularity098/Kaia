@@ -82,6 +82,12 @@ bool savedTintPads()
     return settings->get().getBoolValue ("tintPads", false);
 }
 
+bool savedZoomWithWindow()
+{
+    juce::SharedResourcePointer<SharedSettings> settings;
+    return settings->get().getBoolValue ("zoomWithWindow", true);
+}
+
 void applyTheme (int index, bool tint)
 {
     auto& list = themes();

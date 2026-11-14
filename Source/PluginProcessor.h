@@ -112,6 +112,8 @@ public:
 
     int selectedPad = 0;          // UI state, saved with the project
     int selectedBank = 0;
+    // Editor window size, saved with the project (atomic: getStateInformation may run on a host thread)
+    std::atomic<int> editorWidth { 1120 }, editorHeight { 720 };
 
 private:
     class LoaderThread;

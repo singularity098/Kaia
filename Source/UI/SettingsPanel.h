@@ -68,6 +68,7 @@ private:
     juce::Slider flingSlider { juce::Slider::LinearHorizontal, juce::Slider::TextBoxRight };
     std::unique_ptr<ThemePicker> themePicker;
     juce::ToggleButton tintToggle { "Tint the pads with the theme's colour" };
+    juce::ToggleButton zoomToggle { "Enlarge everything in big windows (full screen)" };
     juce::Label configPath;
     juce::TextButton showConfigButton { "Show" };
 

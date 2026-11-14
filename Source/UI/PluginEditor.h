@@ -12,7 +12,6 @@ namespace kaia
 {
 
 class KaiaEditor : public juce::AudioProcessorEditor,
-                       public juce::FileDragAndDropTarget,
                        public juce::DragAndDropContainer,
                        private juce::ChangeListener,
                        private juce::Timer
@@ -24,16 +23,42 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 
-    bool isInterestedInFileDrag (const juce::StringArray& files) override;
-    void fileDragMove (const juce::StringArray& files, int x, int y) override;
-    void fileDragExit (const juce::StringArray& files) override;
-    void filesDropped (const juce::StringArray& files, int x, int y) override;
-    void paintOverChildren (juce::Graphics&) override;
-
     // Re-reads the theme, tint and highlight colour from the settings and restyles the whole window
     void themeChanged();
 
+    // The whole interface lives in `content`, laid out at a logical size and scaled to fill the
+    // window: big windows (full screen) zoom it up, windows below the minimum layout shrink it
+    // instead of cutting it off. kDesignWidth/Height is the default size, kMinLayout* the smallest
+    // logical size the layout works at.
+    static constexpr int kDesignWidth = 1120, kDesignHeight = 720;
+    static constexpr int kMinLayoutWidth = 900, kMinLayoutHeight = 600;
+    static float zoomForSize (int width, int height, bool zoomWithWindow);
+    float getZoom() const noexcept   { return zoom; }
+    juce::Component& getContent() noexcept   { return content; }
+
 private:
+    // Holds every control; scaled by an AffineTransform (see zoomForSize)
+    struct Content : juce::Component, juce::FileDragAndDropTarget
+    {
+        explicit Content (KaiaEditor& e) : owner (e) {}
+        void paint (juce::Graphics& g) override                 { owner.paintContent (g); }
+        void paintOverChildren (juce::Graphics& g) override     { owner.paintContentOver (g); }
+        void resized() override                                 { owner.layoutContent(); }
+        bool isInterestedInFileDrag (const juce::StringArray& f) override         { return owner.isInterestedInFileDrag (f); }
+        void fileDragMove (const juce::StringArray& f, int x, int y) override     { owner.fileDragMove (f, x, y); }
+        void fileDragExit (const juce::StringArray& f) override                   { owner.fileDragExit (f); }
+        void filesDropped (const juce::StringArray& f, int x, int y) override     { owner.filesDropped (f, x, y); }
+        KaiaEditor& owner;
+    };
+
+    void paintContent (juce::Graphics&);
+    void paintContentOver (juce::Graphics&);
+    void layoutContent();
+    bool isInterestedInFileDrag (const juce::StringArray& files);
+    void fileDragMove (const juce::StringArray& files, int x, int y);
+    void fileDragExit (const juce::StringArray& files);
+    void filesDropped (const juce::StringArray& files, int x, int y);
+
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void timerCallback() override;
 
@@ -56,7 +81,10 @@ private:
 
     KaiaProcessor& processor;
     KaiaLookAndFeel lookAndFeel;
-    juce::TooltipWindow tooltips { this, 600 };
+    Content content { *this };
+    float zoom = 1.0f;
+    bool sizeRestored = false;     // resized() remembers the size only once the saved one is applied
+    juce::TooltipWindow tooltips { &content, 600 };     // inside content, so tips zoom with it
     std::unique_ptr<juce::Drawable> wordmark;      // "KAIA" in the header logo
 
     juce::TextButton openButton { "Open" }, browseButton { "Programs" }, prevButton { "<" }, nextButton { ">" };

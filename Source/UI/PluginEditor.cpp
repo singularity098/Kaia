@@ -17,6 +17,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
       settingsPanel (p)
 {
     setLookAndFeel (&lookAndFeel);
+    addAndMakeVisible (content);
    #if JUCE_LINUX
     addMouseListener (&cursorRefresher, true);
    #endif
@@ -45,7 +46,7 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     routingButton.onClick = [this] { showRoutingMenu(); };
 
     for (auto* b : { &openButton, &filesButton, &libraryButton, &browseButton, &prevButton, &nextButton, &panicButton, &relinkButton, &routingButton, &settingsButton })
-        addAndMakeVisible (b);
+        content.addAndMakeVisible (b);
 
     kitLabel.setFont (uiFont (19.0f, true));
     kitLabel.setColour (juce::Label::textColourId, Colours::text);
@@ -59,15 +60,15 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     voicesLabel.setColour (juce::Label::textColourId, Colours::textDim);
     voicesLabel.setJustificationType (juce::Justification::centredRight);
     for (auto* l : { &kitLabel, &formatLabel, &statusLabel, &voicesLabel })
-        addAndMakeVisible (l);
+        content.addAndMakeVisible (l);
 
     coverButton.setTooltip ("Show the programs of this expansion");
     coverButton.onClick = [this] { togglePanel (Panel::Programs); };
-    addChildComponent (coverButton);
+    content.addChildComponent (coverButton);
 
     logoLink.setTooltip ("Kaia on GitHub: github.com/singularity098/kaia");
     logoLink.setWantsKeyboardFocus (false);
-    addAndMakeVisible (logoLink);
+    content.addAndMakeVisible (logoLink);
 
     masterSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     masterSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
@@ -75,8 +76,8 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
     masterSlider.setDoubleClickReturnValue (true, 0.0);
     masterSlider.setTooltip ("Master volume");
     masterSlider.textFromValueFunction = [] (double v) { return juce::String (v, 1) + " dB"; };
-    masterSlider.setPopupDisplayEnabled (true, true, this);
-    addAndMakeVisible (masterSlider);
+    masterSlider.setPopupDisplayEnabled (true, true, &content);
+    content.addAndMakeVisible (masterSlider);
 
     padGrid.onPadSelected = [this] (int pad)
     {
@@ -92,34 +93,38 @@ KaiaEditor::KaiaEditor (KaiaProcessor& p)
         library.dropOnPad (d, pad, asLayer);
         padGrid.refresh();
     };
-    addAndMakeVisible (padGrid);
+    content.addAndMakeVisible (padGrid);
 
     padEditor.onLoadSampleRequest = [this] (int pad) { chooseSamplesForPad (pad, KaiaProcessor::AssignMode::Append, 0); };
     padEditor.onReplaceLayerRequest = [this] (int pad, int layer) { chooseSamplesForPad (pad, KaiaProcessor::AssignMode::ReplaceLayer, layer); };
-    addAndMakeVisible (padEditor);
+    content.addAndMakeVisible (padEditor);
 
     browser.onClose = [this] { showPanel (Panel::PadEditor); };
-    addChildComponent (browser);
+    content.addChildComponent (browser);
     library.onClose = [this] { showPanel (Panel::PadEditor); };
     library.onChooseFolder = [this] { chooseLibraryFolder(); };
-    addChildComponent (library);
+    content.addChildComponent (library);
     files.onClose = [this] { showPanel (Panel::PadEditor); };
     files.onChooseFolder = [this] { chooseFilesFolder(); };
-    addChildComponent (files);
+    content.addChildComponent (files);
     settingsPanel.onClose = [this] { showPanel (Panel::PadEditor); };
     settingsPanel.onChooseLibraryFolder = [this] { chooseLibraryFolder(); };
     settingsPanel.onChooseFilesFolder = [this] { chooseFilesFolder(); };
     settingsPanel.onThemeChanged = [this] { themeChanged(); };
-    addChildComponent (settingsPanel);
+    content.addChildComponent (settingsPanel);
     settings().addChangeListener (this);
 
     processor.addChangeListener (this);
 
-    constrainer.setMinimumSize (900, 600);
-    constrainer.setMaximumSize (2400, 1600);
+    // Any size a host or the window manager asks for (free aspect ratio, full screen): the content
+    // zooms to fit, so only a floor against unusably small windows is needed
+    constrainer.setMinimumSize (kMinLayoutWidth / 2, kMinLayoutHeight / 2);
+    constrainer.setMaximumSize (16384, 16384);
+    auto savedWidth = processor.editorWidth, savedHeight = processor.editorHeight;
     setConstrainer (&constrainer);
     setResizable (true, true);
-    setSize (1120, 720);
+    setSize (juce::jlimit (kMinLayoutWidth / 2, 16384, savedWidth), juce::jlimit (kMinLayoutHeight / 2, 16384, savedHeight));
+    sizeRestored = true;
 
     refreshAll();
     startTimerHz (15);
@@ -145,6 +150,8 @@ void KaiaEditor::changeListenerCallback (juce::ChangeBroadcaster* source)
         auto theme = savedTheme();
         if (theme != Colours::theme || savedTintPads() != Colours::tintPads)
             themeChanged();
+        if (zoomForSize (getWidth(), getHeight(), savedZoomWithWindow()) != zoom)
+            resized();
         return;
     }
     refreshAll();
@@ -212,8 +219,8 @@ void KaiaEditor::refreshAll()
     padEditor.refresh();
     if (browser.isVisible())
         browser.refresh();
-    resized();
-    repaint();
+    layoutContent();
+    content.repaint();
 }
 
 void KaiaEditor::timerCallback()
@@ -228,12 +235,12 @@ void KaiaEditor::timerCallback()
     {
         shownInputNote = lastNote;
         midiFlash = 1.0f;
-        repaint (midiArea);
+        content.repaint (midiArea);
     }
     else if (midiFlash > 0.0f)
     {
         midiFlash = midiFlash < 0.05f ? 0.0f : midiFlash * 0.7f;
-        repaint (midiArea);
+        content.repaint (midiArea);
     }
 
     auto loading = processor.isLoading();
@@ -242,14 +249,47 @@ void KaiaEditor::timerCallback()
     {
         wasLoading = loading;
         shownProgress = progress;
-        repaint (progressArea);
+        content.repaint (progressArea);
     }
 }
 
 //==============================================================================
 static constexpr int kLogoWidth = 196;     // the logo at the left of the header
 
+float KaiaEditor::zoomForSize (int width, int height, bool zoomWithWindow)
+{
+    if (width <= 0 || height <= 0)
+        return 1.0f;
+    // Larger than the default size in both directions: zoom up (keeps the default proportions of
+    // text to space; the longer side gets the extra room)
+    auto up = juce::jmin ((float) width / (float) kDesignWidth, (float) height / (float) kDesignHeight);
+    if (zoomWithWindow && up > 1.0f)
+        return up;
+    // Below the smallest layout: shrink so everything still fits
+    auto down = juce::jmin ((float) width / (float) kMinLayoutWidth, (float) height / (float) kMinLayoutHeight);
+    return juce::jlimit (0.25f, 1.0f, down);
+}
+
+void KaiaEditor::resized()
+{
+    auto w = getWidth(), h = getHeight();
+    zoom = zoomForSize (w, h, savedZoomWithWindow());
+    content.setTransform (juce::AffineTransform::scale (zoom));
+    content.setBounds (0, 0, (int) std::ceil ((float) w / zoom), (int) std::ceil ((float) h / zoom));
+    // Remembered per instance (and with the project), so the window reopens at this size
+    if (sizeRestored)
+    {
+        processor.editorWidth = w;
+        processor.editorHeight = h;
+    }
+}
+
 void KaiaEditor::paint (juce::Graphics& g)
+{
+    g.fillAll (Colours::background);      // only seen in the rounding gap at the right/bottom edge
+}
+
+void KaiaEditor::paintContent (juce::Graphics& g)
 {
     g.fillAll (Colours::background);
 
@@ -257,7 +297,7 @@ void KaiaEditor::paint (juce::Graphics& g)
     {
         // Gradient themes: faint glows in two corners instead of filled header and footer bars
         auto& theme = themes()[(size_t) Colours::theme];
-        auto w = (float) getWidth(), h = (float) getHeight();
+        auto w = (float) content.getWidth(), h = (float) content.getHeight();
         auto glow = [&g] (juce::uint32 argb, juce::Point<float> centre, float radius)
         {
             if ((argb >> 24) == 0)
@@ -276,8 +316,8 @@ void KaiaEditor::paint (juce::Graphics& g)
         g.fillRect (footerArea);
     }
     g.setColour (Colours::outline);
-    g.drawHorizontalLine (headerArea.getBottom(), 0.0f, (float) getWidth());
-    g.drawHorizontalLine (footerArea.getY(), 0.0f, (float) getWidth());
+    g.drawHorizontalLine (headerArea.getBottom(), 0.0f, (float) content.getWidth());
+    g.drawHorizontalLine (footerArea.getY(), 0.0f, (float) content.getWidth());
 
     // Logo: a K made of pads (the arms lit in the accent colour) and the wordmark
     // (Resources/Logo, tools/make_logo.py: a 4x5 grid of 24-unit pads on a 28-unit pitch, 136 units tall)
@@ -370,7 +410,7 @@ void KaiaEditor::paint (juce::Graphics& g)
                 juce::Justification::centred);
 }
 
-void KaiaEditor::paintOverChildren (juce::Graphics& g)
+void KaiaEditor::paintContentOver (juce::Graphics& g)
 {
     // Phosphor: faint CRT scanlines over everything (only the rows being repainted)
     if (! themes()[(size_t) Colours::theme].scanlines)
@@ -381,9 +421,9 @@ void KaiaEditor::paintOverChildren (juce::Graphics& g)
         g.fillRect (clip.getX(), y, clip.getWidth(), 1);
 }
 
-void KaiaEditor::resized()
+void KaiaEditor::layoutContent()
 {
-    auto r = getLocalBounds();
+    auto r = content.getLocalBounds();
     headerArea = r.removeFromTop (64);
     footerArea = r.removeFromBottom (32);
 
@@ -758,7 +798,7 @@ void KaiaEditor::fileDragMove (const juce::StringArray& files, int x, int y)
     for (auto& f : files)
         audioOnly = audioOnly && isAudioFileName (f);
 
-    auto posInGrid = padGrid.getLocalPoint (this, juce::Point<int> (x, y));
+    auto posInGrid = padGrid.getLocalPoint (&content, juce::Point<int> (x, y));
     padGrid.setDropHighlight (audioOnly ? padGrid.padIndexAt (posInGrid) : -1);
 }
 
@@ -784,7 +824,7 @@ void KaiaEditor::filesDropped (const juce::StringArray& paths, int x, int y)
     if (audioOnly)
     {
         // Onto a pad: assign. Onto a layer row: replace that layer. Elsewhere on the editor: the selected pad.
-        auto padIndex = padGrid.padIndexAt (padGrid.getLocalPoint (this, juce::Point<int> (x, y)));
+        auto padIndex = padGrid.padIndexAt (padGrid.getLocalPoint (&content, juce::Point<int> (x, y)));
         if (padIndex >= 0)
         {
             processor.selectedPad = padIndex;
@@ -794,7 +834,7 @@ void KaiaEditor::filesDropped (const juce::StringArray& paths, int x, int y)
 
         if (padEditor.isVisible() && padEditor.getBounds().contains (x, y))
         {
-            auto layer = padEditor.layerIndexAt (padEditor.getLocalPoint (this, juce::Point<int> (x, y)));
+            auto layer = padEditor.layerIndexAt (padEditor.getLocalPoint (&content, juce::Point<int> (x, y)));
             if (layer >= 0)
                 processor.assignSamplesToPad (processor.selectedPad, files, KaiaProcessor::AssignMode::ReplaceLayer, layer);
             else

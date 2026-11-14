@@ -876,6 +876,8 @@ void KaiaProcessor::getStateInformation (juce::MemoryBlock& destData)
     state.setAttribute ("pack", packFile.getFullPathName());
     state.setAttribute ("selectedPad", selectedPad);
     state.setAttribute ("selectedBank", selectedBank);
+    state.setAttribute ("editorWidth", editorWidth.load());
+    state.setAttribute ("editorHeight", editorHeight.load());
 
     if (juce::MessageManager::getInstanceWithoutCreating() != nullptr
          && juce::MessageManager::getInstance()->isThisTheMessageThread())
@@ -921,6 +923,8 @@ void KaiaProcessor::setStateInformation (const void* data, int sizeInBytes)
 
     auto savedPad  = xml->getIntAttribute ("selectedPad", 0);
     auto savedBank = xml->getIntAttribute ("selectedBank", 0);
+    editorWidth = xml->getIntAttribute ("editorWidth", editorWidth.load());
+    editorHeight = xml->getIntAttribute ("editorHeight", editorHeight.load());
     auto pack      = xml->getStringAttribute ("pack");
 
     auto* kitXml = xml->getChildByName ("Kit");

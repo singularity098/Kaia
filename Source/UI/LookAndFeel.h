@@ -52,6 +52,7 @@ struct Theme
 const std::vector<Theme>& themes();
 int savedTheme();                                     // index into themes(), from the settings file ("theme")
 bool savedTintPads();                                 // setting "tintPads", off by default
+bool savedZoomWithWindow();                           // setting "zoomWithWindow", on by default
 void applyTheme (int index, bool tint);   // sets the Colours
 
 // Highlights. In gradient themes these paint with the gradient across `area` (left to right);

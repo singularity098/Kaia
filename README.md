@@ -155,12 +155,17 @@ decoder and its Linux mouse cursor then get small fixes (`cmake/PatchJuce.cmake`
 * **MIDI Learn**: right-click a pad → *MIDI Learn*, then hit the drum (or key). That note now
   plays the pad, on top of the module map or the program's notes. *Forget learned notes* is in
   the same menu and in Settings.
-* **Theme**: *Settings → Theme*. *Default* is Kaia's original look, with blue highlights. The other eleven are darker themes that
+* **Window size**: drag the corner, or let the host size the window freely or go full screen. A
+  window larger than the default (1120 × 720) zooms the whole interface up to fill it; a window
+  smaller than 900 × 600 shrinks it instead of cutting it off. With *Settings → Appearance → Enlarge
+  everything in big windows* off, text keeps its size and the extra room goes to the lists and the
+  pad editor. Each instance remembers its window size, also in the project.
+* **Theme**: *Settings → Appearance*. *Default* is Kaia's original look, with blue highlights. The other eleven are darker themes that
   paint highlights (pad names, outlines, knob ticks, the waveform) with a three-colour gradient:
   *Iris* (pink, violet, indigo: the look of Xythos and Modometer), *Ember*, *Abyss*, *Phosphor*
   (green-screen, in IBM Plex Mono with faint scanlines), *Synthwave*, *Gold Leaf*, *Aurora*,
   *Blood Moon*, *Glacier*, *Graphite* (no colour at all) and *Oxide*.
-* **Tint pads**: *Settings → Tint the pads with the theme's colour* colours the pads slightly with the
+* **Tint pads**: *Settings → Appearance → Tint the pads with the theme's colour* colours the pads slightly with the
   theme's main colour (blue in *Default*). Off by default.
 * **Sample loops**: off by default (*Settings → Playback*), so every hit plays its sample once.
   Some samples carry loop points; with *Play sample loops* on, pads in note-on mode repeat them

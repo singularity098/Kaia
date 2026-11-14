@@ -118,6 +118,13 @@ theme's tokens to the new one's and re-sets uiFont() fonts on Labels/TextEditors
 pads at 13% (6% empty). Add a theme by appending to `themes()` (names are stored in settings: never
 rename one).
 
+Window size: every control lives in `KaiaEditor::content`, laid out at a logical size and scaled
+with an `AffineTransform` (`zoomForSize`): above the design size 1120x720 it zooms by
+min(w/1120, h/720) (setting `zoomWithWindow`, on by default), below the smallest layout 900x600 it
+shrinks; otherwise 1:1. So the constrainer only has a floor (450x300) and no real maximum: hosts
+may pick any size or aspect, and full screen. Lay out components in content coordinates (`layoutContent()`),
+repaint through `content`. The size is kept per instance and in the state (`editorWidth/Height`).
+
 Namespace is `kaia`. Code style follows JUCE (4-space indent, `function (args)` with a space,
 braces on their own line).
 

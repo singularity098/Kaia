@@ -211,7 +211,7 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     viewport.setScrollOnDragMode (juce::Viewport::ScrollOnDragMode::all);   // touch screens
     addAndMakeVisible (viewport);
 
-    for (auto* text : { "Drum module", "Playback", "Library", "Theme", "Files" })
+    for (auto* text : { "Drum module", "Playback", "Library", "Appearance", "Files" })
     {
         auto* l = headings.add (new juce::Label ({}, juce::String (text).toUpperCase()));
         l->setFont (uiFont (12.0f, true));
@@ -308,6 +308,16 @@ SettingsPanel::SettingsPanel (KaiaProcessor& p) : processor (p)
     tintToggle.setTooltip ("Colour the pads slightly with the theme's main colour (blue in the Default theme)");
     tintToggle.onClick = [this, saveAndApply] { saveAndApply ("tintPads", tintToggle.getToggleState()); };
     content.addAndMakeVisible (tintToggle);
+
+    zoomToggle.setTooltip ("On: a window larger than the default size zooms the whole interface up. "
+                           "Off: text keeps its size and the extra room goes to the lists and the pad editor.");
+    zoomToggle.onClick = [this]
+    {
+        juce::SharedResourcePointer<SharedSettings> settings;
+        settings->get().setValue ("zoomWithWindow", zoomToggle.getToggleState());
+        settings->get().saveIfNeeded();
+    };
+    content.addAndMakeVisible (zoomToggle);
 
     // Files
     showConfigButton.onClick = [] { UserFiles::configDirectory().createDirectory(); UserFiles::configDirectory().revealToUser(); };
@@ -613,6 +623,7 @@ void SettingsPanel::refresh()
 
     mapView->repaint();
     tintToggle.setToggleState (Colours::tintPads, juce::dontSendNotification);
+    zoomToggle.setToggleState (savedZoomWithWindow(), juce::dontSendNotification);
     themePicker->repaint();
     resized();
 }
@@ -687,6 +698,7 @@ void SettingsPanel::resized()
     themePicker->setBounds (row (themePicker->heightForWidth (pickerW)).withWidth (pickerW));
     y += 4;
     tintToggle.setBounds (row (24));
+    zoomToggle.setBounds (row (24));
 
     y += 18;
     headings[4]->setBounds (row (22));

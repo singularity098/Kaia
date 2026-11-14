@@ -56,7 +56,11 @@ int main (int argc, char** argv)
     processor.selectedBank = pad / kPadsPerBank;
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditorAndMakeActive());
-    editor->setSize (1120, 720);
+    // KAIA_SNAPSHOT_SIZE=WxH: another window size (the interface zooms to fit)
+    {
+        auto size = juce::StringArray::fromTokens (juce::SystemStats::getEnvironmentVariable ("KAIA_SNAPSHOT_SIZE", "1120x720"), "x", {});
+        editor->setSize (juce::jmax (1, size[0].getIntValue()), juce::jmax (1, size[1].getIntValue()));
+    }
     editor->setVisible (true);
     pump (300);
 
@@ -115,7 +119,8 @@ int main (int argc, char** argv)
 
     auto click = [&editor] (const juce::String& text)
     {
-        for (auto* c : editor->getChildren())
+        auto* kaia = dynamic_cast<KaiaEditor*> (editor.get());
+        for (auto* c : (kaia != nullptr ? kaia->getContent() : *editor).getChildren())
             if (auto* b = dynamic_cast<juce::TextButton*> (c))
                 if (b->getButtonText() == text)
                     b->triggerClick();
