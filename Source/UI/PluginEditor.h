@@ -22,6 +22,9 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    // A plugin wrapper's window resized by the host through X alone (Carla 2.5 resizes a VST3
+    // editor's window and tells the editor nothing): take the window's size
+    void parentSizeChanged() override;
 
     // Re-reads the theme, tint and highlight colour from the settings and restyles the whole window
     void themeChanged();

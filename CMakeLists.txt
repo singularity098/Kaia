@@ -23,8 +23,9 @@ include(FetchContent)
 # ---------------------------------------------------------------------------
 # JUCE
 # ---------------------------------------------------------------------------
-# Kaia patches JUCE's MP3 decoder (an out-of-bounds write on corrupt files) and the X11 normal
-# cursor (embedded editors showed the host's cursor): cmake/PatchJuce.cmake
+# Kaia patches JUCE's MP3 decoder (an out-of-bounds write on corrupt files), the X11 normal
+# cursor (embedded editors showed the host's cursor) and the X size hints of embedded editor
+# windows (fixed, so some hosts never resized Kaia): cmake/PatchJuce.cmake
 if(KAIA_JUCE_DIR)
     execute_process(COMMAND ${CMAKE_COMMAND} -DJUCE_SOURCE_DIR=${KAIA_JUCE_DIR} -DCHECK_ONLY=ON
                             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJuce.cmake)

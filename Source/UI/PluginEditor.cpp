@@ -284,6 +284,20 @@ void KaiaEditor::resized()
     }
 }
 
+void KaiaEditor::parentSizeChanged()
+{
+    // Only directly inside a plugin wrapper's window: the standalone app lays the editor out in its
+    // own window itself (with room for its notice bar)
+    auto* parent = getParentComponent();
+    if (parent == nullptr || ! parent->isOnDesktop()
+        || processor.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        return;
+    auto area = getLocalArea (parent, parent->getLocalBounds());
+    if (area.getWidth() > 0 && area.getHeight() > 0
+        && (area.getWidth() != getWidth() || area.getHeight() != getHeight()))
+        setBoundsConstrained (getBounds().withSize (area.getWidth(), area.getHeight()));
+}
+
 void KaiaEditor::paint (juce::Graphics& g)
 {
     g.fillAll (Colours::background);      // only seen in the rounding gap at the right/bottom edge

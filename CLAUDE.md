@@ -89,7 +89,7 @@ tools/
   sandbox-sysroot.sh        header-only sysroot for build machines without the distro -dev packages
   xatoms.c                  pre-registers X11 atoms so JUCE windows work on a bare Xvfb
 cmake/glibc_compat.{h,c}    portable Linux build: glibc 2.35 baseline (see below)
-cmake/PatchJuce.cmake       Kaia's fixes to JUCE sources (MP3 decoder, X11 cursor), applied after fetching JUCE
+cmake/PatchJuce.cmake       Kaia's fixes to JUCE sources (MP3 decoder, X11 cursor, resizable editor window), applied after fetching JUCE
 packaging/install.sh        user/system install of the release archive (also `--from <build dir>`)
 build.sh                    one-command source build for users (`--deps`, `--install`)
 .github/workflows/build.yml CI: Linux (portable, ubuntu-22.04) + Windows + macOS, runs KaiaTests
@@ -124,6 +124,9 @@ min(w/1120, h/720) (setting `zoomWithWindow`, on by default), below the smallest
 shrinks; otherwise 1:1. So the constrainer only has a floor (450x300) and no real maximum: hosts
 may pick any size or aspect, and full screen. Lay out components in content coordinates (`layoutContent()`),
 repaint through `content`. The size is kept per instance and in the state (`editorWidth/Height`).
+Hosts that resize the editor's window through X alone (Carla 2.5 for VST3, so Carlita) only resize
+the plugin wrapper's component: `KaiaEditor::parentSizeChanged()` takes its size (not in the
+standalone app, which lays the editor out itself).
 
 Namespace is `kaia`. Code style follows JUCE (4-space indent, `function (args)` with a space,
 braces on their own line).
@@ -233,7 +236,10 @@ patched by `cmake/PatchJuce.cmake`: the MP3 decoder out-of-bounds write (from mp
 fix), and the X11 normal cursor (JUCE sets the window's cursor to None = the parent's, so an
 embedded editor showed the host's cursor, e.g. Reaper's resize arrow when entered from the side;
 the patch defines XC_left_ptr, and `KaiaEditor::CursorRefresher` forces a cursor update on mouse
-enter, as JUCE already does on Windows/macOS). It runs on a fresh fetch and again at every configure
+enter, as JUCE already does on Windows/macOS), and the X size hints of the plugin wrappers' windows
+on Linux (JUCE pins an embedded editor's window to min = max = its size, so hosts that read the hints,
+Carla 2.5 and through it Carlita, never resized Kaia; the patch adds `windowIsResizable` there when the
+editor is resizable). It runs on a fresh fetch and again at every configure
 (a no-op once patched), edits single lines, keeps JUCE's CRLF line endings, skips sources already
 patched, and stops with an error if the code no longer matches: on a JUCE bump, check whether JUCE
 fixed it and update or drop the fix. A local `KAIA_JUCE_DIR` is only checked (warning); patch it with

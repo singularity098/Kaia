@@ -29,6 +29,17 @@
 #    The cursor is freed right after XDefineCursor (the window keeps it), so nothing outlives the
 #    display. PluginEditor forces a cursor update on mouse enter so the arrow is set even when
 #    JUCE thinks the normal cursor is already showing.
+#
+# detail/juce_PluginUtilities.h:
+# 4. Resizable embedded editors on Linux: the window JUCE's plugin wrappers (VST3, LV2, VST2) put
+#    the editor in is created without windowIsResizable, so JUCE gives it X size hints with
+#    min = max = its current size. Hosts that read the editor's hints (Carla copies them onto its
+#    editor window; Carlita reads those) then believe the editor has one fixed size and never
+#    resize it, though Kaia's editor takes any size. The fix adds windowIsResizable on Linux when
+#    the editor is resizable, so the hints carry no limits; KaiaEditor::parentSizeChanged() follows
+#    the window when a host resizes it through X alone (Carla 2.5 does that for VST3 editors).
+#    Only the wrappers' windows are affected; a resizer inside the editor still drags it itself
+#    (its peer belongs to the wrapper, not the editor).
 
 cmake_minimum_required(VERSION 3.22)
 
@@ -145,4 +156,26 @@ if(NOT skip)
            text "${text}")
 
     kaia_write_source("${file}" 1 "X11 cursor")
+endif()
+
+#-------------------------------------------------------------------------------------------------
+# Resizable embedded editors on Linux (fix 4)
+set(file "${JUCE_SOURCE_DIR}/modules/juce_audio_plugin_client/detail/juce_PluginUtilities.h")
+kaia_read_source("${file}")
+kaia_check_state("${file}" 1 "resizable editor window")
+if(NOT skip)
+    set(flagsLine "return [{] flags, editor\\.usesWindowsMultiTouch\\(\\) [}]")
+    string(REGEX MATCHALL "${flagsLine}" flagsLines "${text}")
+    list(LENGTH flagsLines numFlagsLines)
+    if(NOT numFlagsLines EQUAL 1)
+        message(FATAL_ERROR "PatchJuce.cmake: PluginUtilities::getDesktopFlagsAndWindowsMultiTouchMode in this JUCE "
+                            "version doesn't look like the one the fix was written for. Check whether JUCE still "
+                            "gives embedded editor windows fixed X size hints, then update or remove the fix.")
+    endif()
+
+    string(REGEX REPLACE "${flagsLine}"
+           "return { flags | (editor.isResizable() && (SystemStats::getOperatingSystemType() & SystemStats::Linux) != 0 ? (int) ComponentPeer::windowIsResizable : 0) /* Kaia patch: no fixed X size hints for a resizable editor */, editor.usesWindowsMultiTouch() }"
+           text "${text}")
+
+    kaia_write_source("${file}" 1 "resizable editor window")
 endif()

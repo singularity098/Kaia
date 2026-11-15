@@ -67,7 +67,8 @@ cmake --build build
 ```
 
 JUCE 9 and the CLAP extensions are downloaded automatically during the first configure; JUCE's MP3
-decoder and its Linux mouse cursor then get small fixes (`cmake/PatchJuce.cmake`).
+decoder, its Linux mouse cursor and its Linux plugin window's size hints then get small fixes
+(`cmake/PatchJuce.cmake`).
 
 | CMake option | Default | |
 |---|---|---|
@@ -155,7 +156,8 @@ decoder and its Linux mouse cursor then get small fixes (`cmake/PatchJuce.cmake`
 * **MIDI Learn**: right-click a pad → *MIDI Learn*, then hit the drum (or key). That note now
   plays the pad, on top of the module map or the program's notes. *Forget learned notes* is in
   the same menu and in Settings.
-* **Window size**: drag the corner, or let the host size the window freely or go full screen. A
+* **Window size**: drag the corner, or let the host size the window freely or go full screen (in
+  hosts that fit the editor to their window, Carla and Carlita among them, it follows the host). A
   window larger than the default (1120 × 720) zooms the whole interface up to fill it; a window
   smaller than 900 × 600 shrinks it instead of cutting it off. With *Settings → Appearance → Enlarge
   everything in big windows* off, text keeps its size and the extra room goes to the lists and the
