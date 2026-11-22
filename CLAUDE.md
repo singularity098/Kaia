@@ -14,7 +14,12 @@ The owner built this to replace Kontakt Player for drum libraries because Kontak
 
 ## Repository workflow
 
-* **Always commit and push directly to `main`.** No feature branches or PRs for this project.
+* **Commit and push directly to `main`.** Don't create feature branches or open pull requests
+  unless the owner asks for one.
+* Claude Code setups (the web version especially) may create their own working branch for the
+  session. Even then, don't use that branch: commit on `main` and push `main`
+  (`git push origin HEAD:main`). Don't push the session branch.
+* This is a solo project: branches and PRs add very little here and create unwanted overhead.
 * End commit messages with the attribution lines given by the session (Co-Authored-By etc.).
 * Keep `README.md` (user-facing) and this file in sync when behaviour, options or formats change.
 * **Never write into the user's library** (expansions, program folders, samples). Kaia writes
