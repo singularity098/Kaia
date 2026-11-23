@@ -7,7 +7,7 @@
 # CHECK_ONLY=ON reports whether the fixes are in without changing anything.
 #
 # The fixes are plain text replacements inside single lines, so they work whatever line endings
-# the checkout has (Windows CI checks out with CRLF, which breaks `git apply`). Already patched
+# the checkout has (Windows CI checks out with CRLF, which breaks `git apply`), and keep them. Already patched
 # sources are left alone. If JUCE changes this code, the script stops with an error: check whether
 # JUCE fixed the bug itself, then update or drop the fix here.
 #
@@ -96,10 +96,25 @@ macro(kaia_write_source file expectedMarkers what)
     if(NOT numFound EQUAL ${expectedMarkers})
         message(FATAL_ERROR "PatchJuce.cmake: applied ${numFound} of ${expectedMarkers} fixes to ${file}; nothing written")
     endif()
-    if(lineEnding STREQUAL "\r\n")
-        string(REPLACE "\n" "\r\n" text "${text}")
-    endif()
+    # file(WRITE) writes in text mode on Windows, where it turns every \n into \r\n itself (adding
+    # the \r here as well gave \r\r\n, which the next configure took for mixed line endings).
+    # So write the \n text, and add the \r only if the file didn't get them.
     file(WRITE "${file}" "${text}")
+    if(lineEnding STREQUAL "\r\n")
+        string(LENGTH "${text}" textLength)
+        string(REGEX MATCHALL "\n" newlines "${text}")
+        list(LENGTH newlines numNewlines)
+        math(EXPR crlfSize "${textLength} + ${numNewlines}")
+        file(SIZE "${file}" fileSize)
+        if(NOT fileSize EQUAL crlfSize)
+            string(REPLACE "\n" "\r\n" text "${text}")
+            file(WRITE "${file}" "${text}")
+            file(SIZE "${file}" fileSize)
+            if(NOT fileSize EQUAL crlfSize)
+                message(FATAL_ERROR "PatchJuce.cmake: couldn't write ${file} with CRLF line endings")
+            endif()
+        endif()
+    endif()
     message(STATUS "JUCE: applied Kaia's ${what} fixes to ${file}")
 endmacro()
 
