@@ -32,14 +32,14 @@
 
 ### Prebuilt Linux binaries
 
-Every push builds **Kaia-linux-x86_64**: open the latest successful *Build* run on the
+Every push builds `Kaia-<version>-linux-x86_64`: open the latest successful *Build* run on the
 [Actions](https://github.com/singularity098/kaia/actions) tab and download it under *Artifacts*
-(GitHub wraps it in a zip; inside is `Kaia-linux-x86_64.tar.gz`). Tagged versions will also
+(GitHub wraps it in a zip; inside is `Kaia-<version>-linux-x86_64.tar.gz`). Tagged versions will also
 appear on the [Releases](https://github.com/singularity098/kaia/releases) page once published. Then:
 
 ```sh
-tar xzf Kaia-linux-x86_64.tar.gz
-cd Kaia-linux-x86_64
+tar xzf Kaia-*-linux-x86_64.tar.gz
+cd Kaia-*-linux-x86_64/
 ./install.sh                    # for your user: ~/.vst3, ~/.lv2, ~/.clap, ~/.local/bin
 # sudo ./install.sh --system    # or system-wide
 # ./install.sh --uninstall

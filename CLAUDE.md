@@ -305,7 +305,7 @@ Plugin binaries (Linux, headless):
 2. Check the glibc baseline: `objdump -T <binary> | grep -oE 'GLIBC_[0-9.]+' | sort -V | tail -1`
    must be `GLIBC_2.35` and there must be no `GLIBCXX` entries. If new symbols appear, add a
    hidden shim to `cmake/glibc_compat.c` rather than raising the baseline.
-3. Package `Kaia-linux-x86_64/`: `VST3/ LV2/ CLAP/ Standalone/` (strip the binaries with
+3. Package `Kaia-<version>-linux-x86_64/` (packages are named `<App>-<version>-<platform>-<architecture>`): `VST3/ LV2/ CLAP/ Standalone/` (strip the binaries with
    `strip --strip-unneeded`), `install.sh`, `README.md`, `LICENSE`, `THIRD_PARTY.md`,
    `docs/editor.png`, `Resources/Logo/kaia-logo-*.svg` (README header), `icons/`
    (`Resources/Logo/kaia-app-icon-*.png`, used by install.sh), and `Kaia Demo Kit.xpn` from

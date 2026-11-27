@@ -12,6 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Version
+        id: version
+        shell: bash
+        # Packages are named <App>-<version>-<platform>-<architecture>: a v* tag's version, or
+        # the project's version and the commit for builds between releases.
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^project(Kaia VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -31,7 +44,7 @@ jobs:
       - name: Package
         run: |
           out=build/Kaia_artefacts/Release
-          pkg=Kaia-linux-x86_64
+          pkg=Kaia-${{ steps.version.outputs.version }}-linux-x86_64
           mkdir -p $pkg/docs
           cp -r $out/VST3 $out/LV2 $out/CLAP $out/Standalone $pkg/
           strip --strip-unneeded $pkg/VST3/Kaia.vst3/Contents/x86_64-linux/Kaia.so $pkg/LV2/Kaia.lv2/libKaia.so $pkg/CLAP/Kaia.clap
@@ -46,13 +59,25 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Kaia-linux-x86_64
-          path: Kaia-linux-x86_64.tar.gz
+          name: Kaia-${{ steps.version.outputs.version }}-linux-x86_64
+          path: Kaia-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
 
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Version
+        id: version
+        shell: bash
+        # Packages are named <App>-<version>-<platform>-<architecture>: a v* tag's version, or
+        # the project's version and the commit for builds between releases.
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^project(Kaia VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Configure
         run: cmake -S . -B build -DKAIA_BUILD_TESTS=ON
       - name: Build
@@ -61,7 +86,7 @@ jobs:
         run: .\build\KaiaTests_artefacts\Release\KaiaTests.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: Kaia-windows-x64
+          name: Kaia-${{ steps.version.outputs.version }}-windows-x86_64
           path: |
             build/Kaia_artefacts/Release/VST3
             build/Kaia_artefacts/Release/CLAP
@@ -71,6 +96,18 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Version
+        id: version
+        shell: bash
+        # Packages are named <App>-<version>-<platform>-<architecture>: a v* tag's version, or
+        # the project's version and the commit for builds between releases.
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^project(Kaia VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Configure
         run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DKAIA_BUILD_TESTS=ON
       - name: Build
@@ -79,7 +116,7 @@ jobs:
         run: ./build/KaiaTests_artefacts/Release/KaiaTests
       - uses: actions/upload-artifact@v4
         with:
-          name: Kaia-macos
+          name: Kaia-${{ steps.version.outputs.version }}-macos-universal
           path: |
             build/Kaia_artefacts/Release/VST3
             build/Kaia_artefacts/Release/AU
