@@ -28,7 +28,7 @@ else
 fi
 
 if [ "$uninstall" = 1 ]; then
-    rm -rf "$vst3/Kaia.vst3" "$lv2/Kaia.lv2" "$clap/Kaia.clap" "$bin/Kaia" "$apps/kaia.desktop"
+    rm -rf "$vst3/Kaia.vst3" "$lv2/Kaia.lv2" "$clap/Kaia.clap" "$bin/kaia" "$bin/Kaia" "$apps/kaia.desktop"
     rm -f "$icons"/*/apps/kaia.png
     echo "Kaia removed."
     exit 0
@@ -40,8 +40,13 @@ rm -rf "$vst3/Kaia.vst3" "$lv2/Kaia.lv2"
 cp -r "$here/VST3/Kaia.vst3" "$vst3/"
 cp -r "$here/LV2/Kaia.lv2" "$lv2/"
 cp "$here/CLAP/Kaia.clap" "$clap/"
-cp "$here/Standalone/Kaia" "$bin/Kaia"
-chmod +x "$bin/Kaia"
+# The standalone app is `kaia` on the command line: the release archive has it as
+# Standalone/kaia, a build directory (--from) as Standalone/Kaia. Older installs used Kaia.
+standalone="$here/Standalone/kaia"
+[ -f "$standalone" ] || standalone="$here/Standalone/Kaia"
+rm -f "$bin/Kaia"
+cp "$standalone" "$bin/kaia"
+chmod +x "$bin/kaia"
 
 # App icon: next to this script in the release archive, in Resources/Logo/ in the source tree
 logo="$here/icons"
@@ -58,7 +63,7 @@ cat > "$apps/kaia.desktop" <<EOF
 Type=Application
 Name=Kaia
 Comment=Drum sampler for MPC programs and expansions
-Exec=$bin/Kaia
+Exec=$bin/kaia
 Icon=kaia
 Terminal=false
 Categories=AudioVideo;Audio;Music;
@@ -68,7 +73,7 @@ echo "Installed Kaia:"
 echo "  VST3       $vst3/Kaia.vst3"
 echo "  LV2        $lv2/Kaia.lv2"
 echo "  CLAP       $clap/Kaia.clap"
-echo "  Standalone $bin/Kaia"
+echo "  Standalone $bin/kaia"
 echo
 echo "Rescan plugins in your DAW. The demo expansion \"Kaia Demo Kit.xpn\" is a quick way to check it works."
 

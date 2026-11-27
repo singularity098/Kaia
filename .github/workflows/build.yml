@@ -48,7 +48,8 @@ jobs:
           mkdir -p $pkg/docs
           cp -r $out/VST3 $out/LV2 $out/CLAP $out/Standalone $pkg/
           strip --strip-unneeded $pkg/VST3/Kaia.vst3/Contents/x86_64-linux/Kaia.so $pkg/LV2/Kaia.lv2/libKaia.so $pkg/CLAP/Kaia.clap
-          strip $pkg/Standalone/Kaia
+          mv $pkg/Standalone/Kaia $pkg/Standalone/kaia   # lowercase, as typed on the command line
+          strip $pkg/Standalone/kaia
           cp packaging/install.sh README.md LICENSE THIRD_PARTY.md $pkg/
           cp docs/editor.png $pkg/docs/
           mkdir -p $pkg/icons $pkg/Resources/Logo
